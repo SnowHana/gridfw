@@ -1,0 +1,10 @@
+Test,Dim,Cond(A),Samples,Max Rel,Mean Rel,Status
+Stress,50,1.0e+00,1000,2.88e-08,1.22e-08,PASS
+Stress,50,1.0e+04,1000,4.70e-08,2.14e-08,PASS
+Stress,50,1.0e+08,1000,4.23e-08,2.16e-08,PASS
+Stress,100,1.0e+00,1000,4.75e-08,2.44e-08,PASS
+Stress,100,1.0e+04,1000,7.29e-08,4.28e-08,PASS
+Stress,100,1.0e+08,1000,7.92e-08,4.34e-08,PASS
+Stress,200,1.0e+00,1000,9.16e-08,4.90e-08,PASS
+Stress,200,1.0e+04,1000,1.47e-07,9.27e-08,PASS
+Stress,200,1.0e+08,1000,1.40e-07,9.24e-08,PASS
