@@ -1,90 +1,199 @@
 import numpy as np
 
 
-def get_convexity_delta(A, k, p, n):
-    """_summary_
+class GradientVerifier:
+    def __init__(self, h=1e-7, rel_threshold=1e-5):
+        """
+        Initializes the verifier with numerical precision settings.
+        Args:
+            h (float): Step size for finite difference.
+            rel_threshold (float): Acceptable RELATIVE error threshold.
+        """
+        self.h = h
+        self.threshold = rel_threshold
 
-    Args:
-        A (_type_): Matrix X^T X
-        k (_type_): Max num of selection
-        p (_type_): A's dimension (A = p x p)
-        n (_type_): Num iteration of delta
-    """
-    # Get delta value where function changes its convexity
-    # eta1
-    eigenvals = np.linalg.eigvalsh(A)
-    eta_p, eta_1 = eigenvals[0], eigenvals[-1]
-    eps = 0.1 * (k / p)
-    delta_0 = 3 * eta_p * (eps**2) / (1 + 3 * (eps**2))
-    r = (eta_1 / delta_0) ** (1 / (n - 1))
-
-
-def verify_gradient_with_stats():
-    p = int(input("Enter dimension (p): "))
-    num_matrices = int(input("Number of matrices (n): "))
-    num_points = int(input("Number of points per matrix (m): "))
-
-    all_errors = []
-
-    for i in range(num_matrices):
+    def _generate_problem(self, p):
+        """Generates a random problem instance (A, t, xi, b)."""
         X = np.random.randn(p, p)
-        A = X.T @ X  # Symmetric positive definite [cite: 55, 84]
+        A = X.T @ X  # Positive definite matrix A = X^T X
 
-        # Test a delta from the algorithm range [cite: 205]
-        delta = np.random.uniform(0.1, 10.0)
+        # Changed to 0.01-0.99 to test wider range while avoiding 0/1 singularities
+        t = np.random.uniform(0.01, 0.99, size=p)
 
-        # # Calculate Eigenvalues for the Delta ranges
-        # eigenvals = np.linalg.eigvalsh(A)
-        # eta_p, eta_1 = eigenvals[0], eigenvals[-1]
+        xi = np.random.choice([-1, 1], size=p)  # Rademacher vector [cite: 65]
+        b = A @ xi  # b defined as X^T X xi [cite: 56]
+        return A, t, b, xi
 
-        # # Algorithmic delta_0 based on eta_p
-        # eps = 0.1 * (1.0 / p)
-        # delta_0 = (3 * eta_p * eps**2) / (1 + 3 * eps**2)
+    def _get_eigenvalues(self, A):
+        """Returns eta_p (smallest) and eta_1 (largest) eigenvalues."""
+        eigenvals = np.linalg.eigvalsh(A)
+        return eigenvals[0], eigenvals[-1]
 
-        for j in range(num_points):
-            t = np.random.uniform(0.1, 0.9, size=p)
-            xi = np.random.choice([-1, 1], size=p)  # Rademacher [cite: 65]
-            b = A @ xi  # b^(xi) definition [cite: 56]
+    def _calculate_gradient_error(self, p, delta, t, b, A):
+        """
+        Computes Relative Difference between analytical and numerical gradients.
+        Analytical Formula: 2 * delta * (Pi_inv @ b)^2 / t^3
+        """
 
-            # Use your existing single_point function logic
-            error = single_point_verify_gradient_logic(p, delta, t, b, A)
-            all_errors.append(error)
+        # Helper for function value f_delta
+        def get_f_val(t_vec):
+            # NOTE : This calculates Dt for EVERY POINT
+            # Because Dt actually changes relative to t
+            Dt = np.diag(1.0 / (t_vec**2)) - np.eye(p)
+            Pi_t = A + delta * Dt
+            # Matrix inverse must be recomputed for every t
+            return b.T @ np.linalg.inv(Pi_t) @ b
 
-    # Statistical Summary
-    print("\n--- Verification Statistics ---")
-    print(f"Mean Error:   {np.mean(all_errors):.2e}")
-    print(f"Median Error: {np.median(all_errors):.2e}")
-    print(f"Max Error:    {np.max(all_errors):.2e}")
-    print(f"Min Error:    {np.min(all_errors):.2e}")
+        # [cite_start]1. Analytical Gradient [cite: 148, 225]
+        Pi_t = A + delta * (np.diag(1.0 / (t**2)) - np.eye(p))
+        Pi_inv = np.linalg.inv(Pi_t)
+        # Element-wise squaring and division by t^3
+        grad_analytical = 2 * delta * ((Pi_inv @ b) ** 2) / (t**3)
 
-    threshold = 1e-7
-    if np.max(all_errors) < threshold:
-        print(f"SUCCESS: All errors are below threshold ({threshold})")
-    else:
-        print(f"WARNING: Some errors exceed threshold.")
+        # 2. Numerical Gradient (Central Difference)
+        grad_numerical = np.zeros(p)
+        for i in range(p):
+            t_plus = t.copy()
+            t_plus[i] += self.h
+            t_minus = t.copy()
+            t_minus[i] -= self.h
+            grad_numerical[i] = (get_f_val(t_plus) - get_f_val(t_minus)) / (2 * self.h)
+
+        # 3. Error Metrics
+        abs_error = np.linalg.norm(grad_analytical - grad_numerical)
+        grad_norm = np.linalg.norm(grad_analytical)
+
+        # Avoid division by zero
+        rel_error = abs_error / (grad_norm + 1e-10)
+
+        # If the gradient itself is extremely small (e.g., < 1e-8), for small delta cases
+        if grad_norm < 1e-8:
+            if abs_error < 1e-8:
+                rel_error = 0.0
+
+        return rel_error, abs_error, grad_norm
+
+    def _print_stats(self, results, title):
+        """Standardized statistical reporting for (Rel, Abs, Norm) tuples."""
+        # Unpack results
+        rel_errors = [r[0] for r in results]
+        grad_norms = [r[2] for r in results]
+
+        print(f"\n--- {title} ---")
+        print(f"Count:        {len(results)}")
+        print(f"Mean Rel Err: {np.mean(rel_errors):.2e}")
+        print(f"Median Rel:   {np.median(rel_errors):.2e}")
+        print(f"Max Rel Err:  {np.max(rel_errors):.2e}")
+        print(
+            f"Max Grad Mag: {np.max(grad_norms):.2e}"
+        )  # Check if gradients are exploding
+
+        if np.max(rel_errors) > self.threshold:
+            print(f"WARNING: Max relative error exceeds threshold ({self.threshold})")
+        else:
+            print("STATUS: PASSED")
+
+    # --- User Facing Test Functions ---
+
+    def test_general_random(self, p, num_matrices, points_per_matrix):
+        """Test 1: Random Deltas and Points (General Robustness)."""
+        results = []
+        for _ in range(num_matrices):
+            A, _, _, _ = self._generate_problem(p)
+            for _ in range(points_per_matrix):
+                # Random delta in reasonable range
+                delta = np.random.uniform(0.1, 10.0)
+                # Regenerate t and b for variety
+                t = np.random.uniform(0.01, 0.99, size=p)
+                xi = np.random.choice([-1, 1], size=p)
+                b = A @ xi
+
+                err_tuple = self._calculate_gradient_error(p, delta, t, b, A)
+                results.append(err_tuple)
+
+        self._print_stats(results, "Test 1: General Random Cases")
+
+    def test_algorithm_path(self, p, num_matrices, n_steps=10, k=None):
+        """
+        Test 2: Simulates the Homotopy Algorithm's delta schedule.
+        [cite_start]Schedule: delta_0 -> ... -> eta_1 [cite: 205]
+        """
+        if k is None:
+            k = max(1, p // 3)  # Default k if not provided
+        results = []
+
+        print(f"\n--- Test 2: Algorithm Path (Homotopy) ---")
+        print(f"Simulating {num_matrices} matrices with {n_steps} homotopy steps each.")
+
+        for _ in range(num_matrices):
+            A, t, b, xi = self._generate_problem(p)
+            eta_p, eta_1 = self._get_eigenvalues(A)
+
+            # [cite_start]Algorithm parameters [cite: 205]
+            epsilon = 0.1 * (k / p)
+            delta_0 = (3 * eta_p * epsilon**2) / (1 + 3 * epsilon**2)
+
+            # Calculate geometric rate r
+            if n_steps > 1:
+                r = (eta_1 / delta_0) ** (1 / (n_steps - 1))
+            else:
+                r = 1
+
+            # Iterate through the schedule
+            current_delta = delta_0
+            for step in range(n_steps):
+                err_tuple = self._calculate_gradient_error(p, current_delta, t, b, A)
+                results.append(err_tuple)
+                current_delta *= r  # Update delta
+
+        self._print_stats(results, "Homotopy Path Statistics")
+
+    def test_convexity_boundary(self, p, num_matrices):
+        """
+        Test 3: Checks gradient stability around eta_1.
+        [cite_start]eta_1 is where f_delta becomes strictly concave[cite: 175, 217].
+        """
+        results = []
+        for _ in range(num_matrices):
+            A, t, b, xi = self._generate_problem(p)
+            _, eta_1 = self._get_eigenvalues(A)
+
+            # Test specifically at boundaries
+            test_deltas = [
+                eta_1 * 0.9,  # Just below (Transition)
+                eta_1,  # Exact Boundary
+                eta_1 * 1.1,  # Just above (Strictly Concave)
+            ]
+
+            for d in test_deltas:
+                err_tuple = self._calculate_gradient_error(p, d, t, b, A)
+                results.append(err_tuple)
+
+        self._print_stats(results, "Test 3: Convexity Boundary (Around eta_1)")
 
 
-def single_point_verify_gradient_logic(p, delta, t, b, A, h=1e-7):
-    # This is essentially your code's core logic
-    def calculate_f(t_vec):
-        Dt = np.diag(1.0 / (t_vec**2)) - np.eye(p)
-        Pi_t = A + delta * Dt
-        return b.T @ np.linalg.inv(Pi_t) @ b
+# --- Main Execution ---
+def run_interactive_suite():
+    print("=== Boolean Relaxation Gradient Verification Suite ===")
+    try:
+        p = int(input("Enter dimension of matrix (p): "))
+        n_mat = int(input("Enter number of random matrices to test: "))
+        n_pts = int(input("Enter number of points per matrix: "))
+    except ValueError:
+        print("Invalid input. Using defaults: p=5, matrices=3, points=3")
+        p, n_mat, n_pts = 5, 3, 3
 
-    # Analytical [cite: 148, 225]
-    Pi_inv = np.linalg.inv(A + delta * (np.diag(1.0 / (t**2)) - np.eye(p)))
-    grad_a = 2 * delta * ((Pi_inv @ b) ** 2) / (t**3)
+    verifier = GradientVerifier()
 
-    # Numerical
-    grad_n = np.zeros(p)
-    for i in range(p):
-        t_plus = t.copy()
-        t_plus[i] += h
-        t_minus = t.copy()
-        t_minus[i] -= h
-        grad_n[i] = (calculate_f(t_plus) - calculate_f(t_minus)) / (2 * h)
+    # 1. Run General Random Tests
+    verifier.test_general_random(p, n_mat, n_pts)
 
-    return np.linalg.norm(grad_a - grad_n)
+    # 2. Run Algorithm Path Simulation (Simulating n_pts steps)
+    verifier.test_algorithm_path(p, n_mat, n_steps=n_pts)
+
+    # 3. Run Boundary Tests
+    verifier.test_convexity_boundary(p, n_mat)
 
 
-verify_gradient_with_stats()
+if __name__ == "__main__":
+    run_interactive_suite()
