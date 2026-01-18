@@ -1,0 +1,13 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gridfw"
+version = "0.1.0"
+description = "Gradient Framework for CSSP"
+requires-python = ">=3.8"
+
+# This section tells Python: "Look inside 'src' to find my packages"
+[tool.setuptools.packages.find]
+where = ["src"]

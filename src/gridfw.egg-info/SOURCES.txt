@@ -1,0 +1,16 @@
+README.md
+pyproject.toml
+src/grad_fw/__init__.py
+src/grad_fw/brute_force.py
+src/grad_fw/fw_homotomy.py
+src/grad_verif/__init__.py
+src/grad_verif/core.py
+src/grad_verif/logger.py
+src/grad_verif/main.py
+src/grad_verif/verifiers.py
+src/grid-fw-moka/portfolio.py
+src/grid-fw-moka/solver.py
+src/gridfw.egg-info/PKG-INFO
+src/gridfw.egg-info/SOURCES.txt
+src/gridfw.egg-info/dependency_links.txt
+src/gridfw.egg-info/top_level.txt

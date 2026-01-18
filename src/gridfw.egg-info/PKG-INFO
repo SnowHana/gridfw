@@ -1,0 +1,5 @@
+Metadata-Version: 2.4
+Name: gridfw
+Version: 0.1.0
+Summary: Gradient Framework for CSSP
+Requires-Python: >=3.8
