@@ -11,3 +11,8 @@ requires-python = ">=3.8"
 # This section tells Python: "Look inside 'src' to find my packages"
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.pytest.ini_options]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+]
