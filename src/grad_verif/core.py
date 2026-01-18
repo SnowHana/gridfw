@@ -6,22 +6,18 @@ class ProblemGenerator:
 
     @staticmethod
     def generate_ill_conditioned_matrix(p, condition_number):
+        # Use Eigen-decomposition : A = Q diag(eigen) Q^T
         X = np.random.randn(p, p)
         Q, _ = np.linalg.qr(X)
         eigenvalues = np.linspace(1.0, 1.0 / condition_number, p)
         return Q @ np.diag(eigenvalues) @ Q.T
 
     @staticmethod
-    def generate_vectors(p, A, t_bounds=(0.001, 0.99)):
+    def generate_vectors(p, A, t_bounds=(0.001, 0.999)):
         t = np.random.uniform(t_bounds[0], t_bounds[1], size=p)
         xi = np.random.choice([-1, 1], size=p)
         b = A @ xi
         return t, xi, b
-
-
-import numpy as np
-
-# ... ProblemGenerator class stays the same ...
 
 
 class BooleanRelaxation:
