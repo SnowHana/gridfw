@@ -4,8 +4,8 @@ import time
 
 class GreedySolver:
     """
-    The Industry Standard Benchmark for CSSP.
-    Fast, reliable, and what reviewers expect you to beat.
+    Greedy Selection for CSSP
+    We can use other solvers like Gurobi or CPLEX later?
     """
 
     def __init__(self, A, k):

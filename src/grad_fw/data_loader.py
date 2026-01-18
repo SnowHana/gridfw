@@ -3,59 +3,127 @@ import pandas as pd
 import io
 import requests
 
+# Registry of supported datasets
+DATASETS = {
+    "residential": "https://archive.ics.uci.edu/ml/machine-learning-databases/00437/Residential-Building-Data-Set.xlsx",
+    "secom": "https://archive.ics.uci.edu/ml/machine-learning-databases/secom/secom.data",
+}
 
-def load_residential_building_data():
+
+def load_dataset(name_or_url):
     """
-    Fetches the Residential Building Data Set (ID: 437) directly via HTTP.
-    Returns the Correlation Matrix (A) and normalized data (X_norm).
+    General entry point to load any supported CSSP dataset.
+
+    Args:
+        name_or_url (str): Either a key ('residential', 'secom') or a direct URL.
+
+    Returns:
+        A (np.ndarray): Correlation matrix (p x p).
+        X_norm (np.ndarray): Normalized feature matrix (N x p).
     """
-    url = "https://archive.ics.uci.edu/ml/machine-learning-databases/00437/Residential-Building-Data-Set.xlsx"
-    print(f"  > Downloading data directly from: {url}")
+    # 1. Resolve URL
+    url = DATASETS.get(name_or_url.lower(), name_or_url)
+
+    print(f"  > Loading dataset: {name_or_url}")
+    print(f"    Source: {url}")
 
     try:
-        # 1. Download the Excel file
-        # verify=False prevents SSL errors on Mac if certificates are tricky
+        # 2. Download Data (Robust SSL handling)
         response = requests.get(url, verify=False)
         response.raise_for_status()
+        content = io.BytesIO(response.content)
 
-        # 2. Read Excel
-        # The file has two header rows. We read from row 1 (index 1) to get proper labels.
-        df = pd.read_excel(io.BytesIO(response.content), header=1)
+        # 3. Dispatch to specific loader based on known URLs
+        if "Residential-Building" in url:
+            X_raw = _parse_residential(content)
+        elif "secom" in url:
+            X_raw = _parse_secom(content)
+        else:
+            # Fallback: Try generic CSV loading
+            print("    Unknown format. Attempting generic CSV load...")
+            df = pd.read_csv(content)
+            X_raw = df.select_dtypes(include=[np.number]).to_numpy()
 
-        # 3. Clean Data
-        # The dataset structure is:
-        # Cols 0-3: Date/ID info (Drop)
-        # Cols 4-107: Features (Keep)
-        # Cols 108-109: Targets (Drop)
+        if X_raw is None:
+            return None, None
 
-        # Select numeric features only (Columns 4 to 107)
-        X_df = df.iloc[:, 4:107]
-
-        # Convert to numpy and ensure numeric type
-        X_raw = X_df.apply(pd.to_numeric, errors="coerce").to_numpy(dtype=np.float64)
-
-        # Fill any NaNs with 0
-        if np.isnan(X_raw).any():
-            X_raw = np.nan_to_num(X_raw)
-
-        print(f"    Loaded Raw Data: {X_raw.shape} (Rows x Features)")
-
-        # 4. Standardize (Z-score normalization)
-        X_mean = np.mean(X_raw, axis=0)
-        X_std = np.std(X_raw, axis=0)
-
-        # Prevent division by zero if a column is constant
-        X_std[X_std == 0] = 1.0
-
-        X_norm = (X_raw - X_mean) / X_std
-
-        # 5. Compute Correlation Matrix A = (X^T X) / N
-        N = X_norm.shape[0]
-        A = (X_norm.T @ X_norm) / N
-
-        print(f"    Computed Correlation Matrix A: {A.shape}")
-        return A, X_norm
+        # 4. Standardize and Compute Correlation (Shared Logic)
+        return _standardize_and_correlate(X_raw)
 
     except Exception as e:
         print(f"    CRITICAL ERROR loading data: {e}")
         return None, None
+
+
+# --- SPECIFIC PARSERS ---
+
+
+def _parse_residential(content):
+    """Parser for UCI Residential Building (Excel, Headers, targets at end)."""
+    try:
+        # Read Excel (Header is on row 1, index 1)
+        df = pd.read_excel(content, header=1)
+
+        # Columns 4 to 107 are the features (V-1 to V-104)
+        # Drop first 4 (ID/Dates) and last 2 (Targets)
+        X_df = df.iloc[:, 4:107]
+
+        # Force numeric
+        X_raw = X_df.apply(pd.to_numeric, errors="coerce").to_numpy(dtype=np.float64)
+        return np.nan_to_num(X_raw)
+
+    except Exception as e:
+        print(f"    Error parsing Residential Excel: {e}")
+        return None
+
+
+def _parse_secom(content):
+    """Parser for SECOM (Space-separated, No Header, Constant Columns)."""
+    try:
+        # Read CSV with space delimiter
+        df = pd.read_csv(content, sep="\s+", header=None)
+        X_raw = df.to_numpy(dtype=np.float64)
+
+        # Fill NaNs (SECOM has many)
+        X_raw = np.nan_to_num(X_raw)
+
+        # SECOM SPECIFIC: Drop constant columns (Variance = 0)
+        # If we don't do this, the matrix is singular and solver crashes.
+        std_devs = np.std(X_raw, axis=0)
+        keep_idx = np.where(std_devs > 1e-9)[0]
+
+        print(
+            f"    [SECOM Cleaning] Dropped {X_raw.shape[1] - len(keep_idx)} constant columns."
+        )
+        return X_raw[:, keep_idx]
+
+    except Exception as e:
+        print(f"    Error parsing SECOM CSV: {e}")
+        return None
+
+
+# --- SHARED MATH ---
+
+
+def _standardize_and_correlate(X_raw):
+    """
+    Normalizes X (Z-score) and calculates A = (X^T X) / N.
+    Used for ALL datasets to ensure consistent math.
+    """
+    N, p = X_raw.shape
+    print(f"    Raw Data Shape: {N} rows x {p} features")
+
+    # Z-score Normalization
+    X_mean = np.mean(X_raw, axis=0)
+    X_std = np.std(X_raw, axis=0)
+
+    # Safety: Avoid division by zero
+    X_std[X_std == 0] = 1.0
+
+    X_norm = (X_raw - X_mean) / X_std
+
+    # Correlation Matrix
+    A = (X_norm.T @ X_norm) / N
+
+    print(f"    Computed Correlation Matrix A: {A.shape}")
+    return A, X_norm
