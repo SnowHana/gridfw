@@ -19,16 +19,24 @@ class ProblemGenerator:
         return t, xi, b
 
 
+import numpy as np
+
+# ... ProblemGenerator class stays the same ...
+
+
 class BooleanRelaxation:
     """
     Central repository for all math formulas (f, g, and their gradients).
-    Cites: for gradients, for relaxation.
+    Includes numerical stability fixes for t -> 0.
     """
 
     @staticmethod
     def get_pi_inv(p, delta, t, A):
-        """Calculates (A + delta * (T^-2 - I))^-1"""
-        Dt = np.diag(1.0 / (t**2)) - np.eye(p)
+        """Calculates (A + delta * (T^-2 - I))^-1 with numerical safety."""
+        # FIX: Clip t to avoid 1/0 division
+        t_safe = np.clip(t, 1e-9, 1.0)
+
+        Dt = np.diag(1.0 / (t_safe**2)) - np.eye(p)
         Pi_t = A + delta * Dt
         return np.linalg.inv(Pi_t)
 
@@ -37,16 +45,16 @@ class BooleanRelaxation:
     @staticmethod
     def grad_f_analytical(p, delta, t, b, A):
         """Formula: 2 * delta * (Pi_inv @ b)^2 / t^3"""
-        Pi_inv = BooleanRelaxation.get_pi_inv(p, delta, t, A)
-        return 2 * delta * ((Pi_inv @ b) ** 2) / (t**3)
+        t_safe = np.clip(t, 1e-9, 1.0)  # FIX
+
+        Pi_inv = BooleanRelaxation.get_pi_inv(p, delta, t_safe, A)
+        return 2 * delta * ((Pi_inv @ b) ** 2) / (t_safe**3)
 
     @staticmethod
     def grad_f_numerical(p, delta, t, b, A, h=1e-7):
-        """Central finite difference for f(t)."""
         grad = np.zeros(p)
 
         def func(t_vec):
-            # Recompute Inverse per point
             return b.T @ BooleanRelaxation.get_pi_inv(p, delta, t_vec, A) @ b
 
         for i in range(p):
@@ -62,13 +70,13 @@ class BooleanRelaxation:
     def grad_g_analytical(p, delta, t, A, xi_samples):
         """
         Computes Mean(grad_f) efficiently.
-        Optimization: Computes Matrix Inverse ONCE for all samples.
         """
-        Pi_inv = BooleanRelaxation.get_pi_inv(p, delta, t, A)
+        t_safe = np.clip(t, 1e-9, 1.0)  # FIX
+
+        Pi_inv = BooleanRelaxation.get_pi_inv(p, delta, t_safe, A)
         grad_sum = np.zeros(p)
 
-        # Pre-calculate term constant across samples
-        scale = 2 * delta / (t**3)
+        scale = 2 * delta / (t_safe**3)
 
         for xi in xi_samples:
             b = A @ xi
@@ -78,13 +86,11 @@ class BooleanRelaxation:
 
     @staticmethod
     def grad_g_numerical(p, delta, t, A, xi_samples, h=1e-7):
-        """Finite difference on Mean(f)."""
         grad = np.zeros(p)
-        b_vecs = [A @ xi for xi in xi_samples]  # Pre-calc b to save time
+        b_vecs = [A @ xi for xi in xi_samples]
         N = len(xi_samples)
 
         def get_g(t_vec):
-            # Invert once per perturbation
             Pi_inv = BooleanRelaxation.get_pi_inv(p, delta, t_vec, A)
             val = 0.0
             for b in b_vecs:
