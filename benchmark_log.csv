@@ -1,0 +1,31 @@
+Timestamp,Dataset,Test_Name,k,Steps,Samples,Greedy_Obj,FW_Obj,Ratio,Greedy_Time_s,FW_Time_s,Speedup_x,Status,Note
+2026-01-20 00:53:39,SECOM,accuracy_k10,10,800,300,113.3433,93.0782,0.8212,,,,FAIL,"Fixed from cliping delta0 to min 0.1 to Tikhonov Reg. initially, allowing us to deal with much smaller eigenvalues. Also, adding spectral norm so that max e.v. is 1.0"
+2026-01-20 00:53:43,SECOM,benchmark_k50,50,800,100,284.7579,264.5115,0.9289,0.8322,2.7647,0.30,PASS,"Fixed from cliping delta0 to min 0.1 to Tikhonov Reg. initially, allowing us to deal with much smaller eigenvalues. Also, adding spectral norm so that max e.v. is 1.0"
+2026-01-20 00:53:45,SECOM,stress_k100,100,800,50,,,,,2.2633,,PASS,"Fixed from cliping delta0 to min 0.1 to Tikhonov Reg. initially, allowing us to deal with much smaller eigenvalues. Also, adding spectral norm so that max e.v. is 1.0"
+2026-01-20 00:53:55,SECOM,stability_check,30,600,80,,201.4760,,,,,PASS (CV=0.5%),"Fixed from cliping delta0 to min 0.1 to Tikhonov Reg. initially, allowing us to deal with much smaller eigenvalues. Also, adding spectral norm so that max e.v. is 1.0"
+2026-01-20 01:01:51,SECOM,accuracy_k10,10,800,300,113.3433,96.8983,0.8549,0.0556,3.9894,0.01,FAIL,Modularised tests to show the time and objective values
+2026-01-20 01:01:54,SECOM,benchmark_k50,50,800,100,284.7579,267.3644,0.9389,0.9010,2.8081,0.32,PASS,Modularised tests to show the time and objective values
+2026-01-20 01:02:00,SECOM,stress_k100,100,800,50,465.1401,377.1477,0.8108,3.0023,2.3053,1.30,FAIL,Modularised tests to show the time and objective values
+2026-01-20 01:02:10,SECOM,stability_check,30,600,80,,249.9628,,,1.9694,,FAIL (CV=39.6%),Modularised tests to show the time and objective values
+2026-01-20 01:06:06,SECOM,accuracy_k10,10,800,100,113.3433,70.7549,0.6243,0.0569,2.1308,0.03,FAIL,Reducd n_mc_samples and steps
+2026-01-20 01:06:09,SECOM,benchmark_k50,50,800,100,284.7579,266.9254,0.9374,0.8548,2.7717,0.31,PASS,Reducd n_mc_samples and steps
+2026-01-20 01:06:15,SECOM,stress_k100,100,800,100,465.1401,379.2987,0.8155,2.9709,3.0142,0.99,FAIL,Reducd n_mc_samples and steps
+2026-01-20 01:06:25,SECOM,stability_check,30,600,80,,200.4326,,,1.9866,,PASS (CV=1.3%),Reducd n_mc_samples and steps
+2026-01-20 01:21:48,SECOM,accuracy_k10,10,800,100,113.3433,52.1506,0.4601,0.0572,2.9286,0.02,FAIL,"Added clipping t, and most importantly, reverted delta0 clipping to 0.1"
+2026-01-20 01:21:52,SECOM,benchmark_k50,50,800,100,284.7579,129.2826,0.4540,0.8594,3.0193,0.28,FAIL,"Added clipping t, and most importantly, reverted delta0 clipping to 0.1"
+2026-01-20 01:21:58,SECOM,stress_k100,100,800,100,465.1401,5.2872,0.0114,3.0654,2.8430,1.08,FAIL,"Added clipping t, and most importantly, reverted delta0 clipping to 0.1"
+2026-01-20 01:22:08,SECOM,stability_check,30,600,80,,91.4779,,,1.9454,,FAIL (CV=6.2%),"Added clipping t, and most importantly, reverted delta0 clipping to 0.1"
+2026-01-20 01:25:50,SECOM,accuracy_k10,10,500,50,113.3433,106.0717,0.9358,0.0565,1.4478,0.04,PASS,"delta0 -> 0.001 clipping, reduced step number and nmc for tests"
+2026-01-20 01:25:52,SECOM,benchmark_k50,50,800,30,284.7579,269.7060,0.9471,0.8673,1.9836,0.44,PASS,"delta0 -> 0.001 clipping, reduced step number and nmc for tests"
+2026-01-20 01:25:57,SECOM,stress_k100,100,500,20,465.1401,363.9974,0.7826,3.0130,1.1579,2.60,FAIL,"delta0 -> 0.001 clipping, reduced step number and nmc for tests"
+2026-01-20 01:26:06,SECOM,stability_check,30,600,80,,204.7904,,,1.9444,,PASS (CV=0.5%),"delta0 -> 0.001 clipping, reduced step number and nmc for tests"
+2026-01-20 01:30:27,SECOM,accuracy_k10,10,500,50,113.3433,95.1857,0.8398,0.0558,1.3749,0.04,FAIL,Stability testing on 50 separate runs
+2026-01-20 01:30:30,SECOM,benchmark_k50,50,800,30,284.7579,265.1564,0.9312,0.8610,1.9616,0.44,PASS,Stability testing on 50 separate runs
+2026-01-20 01:30:34,SECOM,stress_k100,100,500,20,465.1401,413.0245,0.8880,3.0444,1.1508,2.65,PASS,Stability testing on 50 separate runs
+2026-01-20 01:32:10,SECOM,stability_check,30,600,80,,203.9800,,,1.9214,,PASS (CV=3.6%),Stability testing on 50 separate runs
+2026-01-20 01:36:32,SECOM,stress_k100,100,800,50,465.1401,375.5452,0.8074,3.0891,2.2370,1.38,FAIL,Increased step size and nmc for k100
+2026-01-20 01:38:33,SECOM,stress_k100,100,1000,20,465.1401,379.2609,0.8154,3.0721,2.2830,1.35,FAIL,"1000steps, 20nmc for k100"
+2026-01-20 01:40:33,SECOM,stress_k100,100,2000,10,465.1401,379.0128,0.8148,3.0342,4.2821,0.71,FAIL,"2000steps, 10nmc for k100"
+2026-01-20 01:41:07,SECOM,stress_k100,100,500,50,465.1401,-1275.2912,-2.7417,3.0482,1.3780,2.21,FAIL,"500steps, 50nmc for k100"
+2026-01-20 01:41:29,SECOM,stress_k100,100,500,50,465.1401,1392.2134,2.9931,3.0542,1.3801,2.21,PASS,"500steps, 50nmc for k100"
+2026-01-20 01:49:13,SECOM,stability_check,30,600,80,,204.8919,,,1.9250,,PASS (CV=0.6%),"30,600,80 stability test 100 runs"

@@ -1,11 +1,13 @@
 import numpy as np
-import time
+import itertools
+import math
 
 
 class GreedySolver:
     """
-    Greedy Selection for CSSP
-    We can use other solvers like Gurobi or CPLEX later?
+    Standard Greedy Algorithm for Column Subset Selection.
+    Selects one feature at a time to maximize the objective amongst remaining features
+    Complexity: O(k * p) steps (approx).
     """
 
     def __init__(self, A, k):
@@ -13,52 +15,99 @@ class GreedySolver:
         self.p = A.shape[0]
         self.k = k
 
+    def calculate_obj(self, indices):
+        """
+        Calculates the Trace Objective for a given set of indices.
+        Obj = Trace( (A_S)^-1 @ (A_S,: @ A_S,:^T) )
+        """
+        if len(indices) == 0:
+            return 0.0
+
+        # Extract Submatrices
+        idx = list(indices)
+        A_ss = self.A[np.ix_(idx, idx)]  # The k x k small block
+        A_s_all = self.A[idx, :]  # The k x p rectangular strip
+
+        try:
+            # Note: A_s_all @ A_s_all.T is actually (A^2)_ss
+            # But we compute it explicitly here for clarity
+            numerator = A_s_all @ A_s_all.T
+            return np.trace(np.linalg.inv(A_ss) @ numerator)
+        except np.linalg.LinAlgError:
+            return -1.0
+
     def solve(self):
-        """Returns: indices, objective_value, time_taken"""
-        selected = []
-        available = list(range(self.p))
+        """
+        Runs the Greedy selection process.
+        Returns: (best_indices, best_obj, time_taken)
+        """
+        import time
 
         start_time = time.time()
 
-        # Iteratively pick the single best column to add
-        for step in range(self.k):
-            best_idx = -1
-            best_gain = -np.inf
+        current_indices = []
 
-            for idx in available:
-                # Test "What if we add idx?"
-                current_set = selected + [idx]
+        # Greedily add k elements
+        for _ in range(self.k):
+            best_imp_idx = -1
+            best_imp_val = -np.inf
 
-                # --- FAST OBJECTIVE CALCULATION ---
-                # A_ss = Submatrix of chosen items
-                A_ss = self.A[np.ix_(current_set, current_set)]
-                A_s_all = self.A[current_set, :]
+            # Try adding every remaining candidate
+            candidates = [i for i in range(self.p) if i not in current_indices]
 
-                try:
-                    # Obj = Trace( (A_ss)^-1 @ A_s_all @ A_s_all.T )
-                    # We use pinv for stability during the greedy build-up
-                    val = np.trace(np.linalg.pinv(A_ss) @ (A_s_all @ A_s_all.T))
-                except np.linalg.LinAlgError:
-                    val = -1.0
+            for candidate in candidates:
+                # Test combination
+                temp_indices = current_indices + [candidate]
+                val = self.calculate_obj(temp_indices)
 
-                if val > best_gain:
-                    best_gain = val
-                    best_idx = idx
+                if val > best_imp_val:
+                    best_imp_val = val
+                    best_imp_idx = candidate
 
-            if best_idx != -1:
-                selected.append(best_idx)
-                available.remove(best_idx)
-            else:
-                break
+            if best_imp_idx != -1:
+                current_indices.append(best_imp_idx)
 
         total_time = time.time() - start_time
-        return np.array(selected), best_gain, total_time
+        final_obj = self.calculate_obj(current_indices)
 
-    # Helper to verify your FW result against Greedy's logic
-    def calculate_obj(self, indices):
-        indices = list(indices)
-        if len(indices) == 0:
-            return 0.0
-        A_ss = self.A[np.ix_(indices, indices)]
-        A_s_all = self.A[indices, :]
-        return np.trace(np.linalg.pinv(A_ss) @ (A_s_all @ A_s_all.T))
+        return current_indices, final_obj, total_time
+
+
+class BruteForceSolver:
+    """
+    The 'Ground Truth' Solver.
+    Checks EVERY possible combination of k features.
+    WARNING: Only use for tiny problems (p < 20).
+    """
+
+    def __init__(self, A, k):
+        self.A = A
+        self.p = A.shape[0]
+        self.k = k
+        self.helper = GreedySolver(A, k)  # Reuse calculation logic
+
+    def solve(self, safe_mode=True):
+        # 1. Safety Check
+        n_combinations = math.comb(self.p, self.k)
+        if safe_mode and n_combinations > 2_000_000:
+            raise ValueError(
+                f"Brute Force is too dangerous! {n_combinations:,} combinations.\n"
+                f"Set safe_mode=False to override (Computer might freeze)."
+            )
+
+        print(f"Brute Force: Checking {n_combinations} combinations...")
+
+        best_obj = -np.inf
+        best_indices = None
+
+        # 2. Iterate ALL combinations
+        for indices in itertools.combinations(range(self.p), self.k):
+            # Convert tuple to list
+            idx_list = list(indices)
+            obj = self.helper.calculate_obj(idx_list)
+
+            if obj > best_obj:
+                best_obj = obj
+                best_indices = idx_list
+
+        return best_indices, best_obj

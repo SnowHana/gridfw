@@ -3,7 +3,7 @@ import numpy as np
 import math
 import itertools
 from grad_verif.core import ProblemGenerator
-from grad_fw.brute_force import BruteForceSolver
+from grad_fw.benchmarks import BruteForceSolver
 from grad_fw.fw_homotomy import FWHomotopySolver
 
 
