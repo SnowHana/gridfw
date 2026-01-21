@@ -88,5 +88,29 @@ def plot_sweep():
         print(f"Saved {PLOT_DIR}/vary_steps.png")
         plt.close()
 
+    # 4. Portfolio Vary k
+    df_pk = df[df['Experiment'] == 'portfolio_vary_k']
+    if not df_pk.empty:
+        plt.figure(figsize=(10, 5))
+        
+        plt.subplot(1, 2, 1)
+        plt.plot(df_pk['k'], df_pk['Ratio'], marker='o', color='green')
+        plt.title('Portfolio: Accuracy (Ratio)')
+        plt.xlabel('k')
+        plt.ylabel('Ratio (FW/Greedy)')
+        plt.grid(True)
+
+        plt.subplot(1, 2, 2)
+        plt.plot(df_pk['k'], df_pk['Speedup_x'], marker='o', color='orange')
+        plt.title('Portfolio: Speedup')
+        plt.xlabel('k')
+        plt.ylabel('Speedup')
+        plt.grid(True)
+
+        plt.tight_layout()
+        plt.savefig(f"{PLOT_DIR}/portfolio_vary_k.png")
+        print(f"Saved {PLOT_DIR}/portfolio_vary_k.png")
+        plt.close()
+
 if __name__ == "__main__":
     plot_sweep()

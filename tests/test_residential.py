@@ -71,7 +71,7 @@ def test_medium_accuracy_stability(benchmark_logger):
     print(f"    Avg Time:    {total_time/n_runs:.4f}s")
 
     # Log Result
-    status = "PASS" if (ratio < 1.35 and cv < 0.05) else "FAIL"
+    status = "PASS" if (ratio > 0.75 and cv < 0.05) else "FAIL"
     benchmark_logger(
         "residential_medium_stability",
         k,
@@ -85,9 +85,9 @@ def test_medium_accuracy_stability(benchmark_logger):
         dataset_name="Residential",
     )
 
-    # Assertions based on user goals
-    # Ratio around 1.1 - 1.3 is considered promising
-    assert ratio < 1.35, f"Accuracy too low: Ratio {ratio:.2f} > 1.35"
+    # Assertions based on user goals (Maximization)
+    # Ratio > 0.75 means FW is at least 75% of Greedy
+    assert ratio > 0.75, f"Accuracy too low: Ratio {ratio:.2f} < 0.75"
     
     # CV should be around 3% (assert < 5% for safety)
     assert cv < 0.05, f"Instability detected: CV {cv:.2%} > 5%"
@@ -126,7 +126,7 @@ def test_scalability_k40(benchmark_logger):
     print(f"    FW: Obj={fw_obj:.4f} ({fw_time:.4f}s)")
     print(f"    Ratio: {ratio:.4f}")
 
-    status = "PASS" if ratio < 1.40 else "FAIL"
+    status = "PASS" if ratio > 0.70 else "FAIL"
     benchmark_logger(
         "residential_scalability_k40",
         k,
@@ -140,5 +140,5 @@ def test_scalability_k40(benchmark_logger):
         dataset_name="Residential",
     )
 
-    # Allow slightly higher ratio for larger k/scalability test
-    assert ratio < 1.40, f"Optimization collapsed at high k: Ratio {ratio:.2f}"
+    # Allow slightly lower ratio for larger k/scalability test
+    assert ratio > 0.70, f"Optimization collapsed at high k: Ratio {ratio:.2f}"

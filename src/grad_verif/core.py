@@ -191,3 +191,35 @@ class BooleanRelaxation:
         Used for MINIMIZATION problems.
         """
         return -BooleanRelaxation.grad_g_analytical(p, delta, t, A, xi_samples)
+
+    @staticmethod
+    def grad_a_opt_analytical(p, delta, t, A, xi_samples):
+        """
+        Gradient for A-Optimality (Trace of Inverse).
+        Objective: E[ xi^T (A + delta*Dt)^-1 xi ]
+        This is what we want to MINIMIZE.
+        """
+        t_safe = np.clip(t, 1e-9, 1.0)
+        Pi_inv = BooleanRelaxation.get_pi_inv(p, delta, t_safe, A)
+        grad_sum = np.zeros(p)
+        scale = 2 * delta / (t_safe**3)
+
+        for xi in xi_samples:
+            # For A-Optimality, b is just xi (Hutchinson's Trace Estimator)
+            b = xi 
+            grad_sum += (Pi_inv @ b) ** 2
+
+        return scale * (grad_sum / len(xi_samples))
+
+    @staticmethod
+    def grad_portfolio_analytical(p, delta, t, A):
+        """
+        Gradient for Minimum-Variance Portfolio (Maximizing 1^T A_S^-1 1).
+        Objective: 1^T (A + delta*Dt)^-1 1
+        This is a MAXIMIZATION problem.
+        Returns NEGATIVE gradient for minimization solver.
+        """
+        b = np.ones(p)
+        # Gradient of f(t) is positive (increasing t increases objective)
+        grad_f = BooleanRelaxation.grad_f_analytical(p, delta, t, b, A)
+        return -grad_f

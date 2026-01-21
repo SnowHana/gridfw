@@ -8,11 +8,12 @@ class FWHomotopySolver:
     Corrected for MINIMIZATION of the A-Optimality objective.
     """
 
-    def __init__(self, A, k, alpha=0.01, n_steps=500, n_mc_samples=50):
+    def __init__(self, A, k, alpha=0.01, n_steps=500, n_mc_samples=50, objective_type='cssp'):
         self.raw_p = A.shape[0]
         self.k = k
         self.alpha = alpha
         self.n = n_steps
+        self.objective_type = objective_type
         
         # Adaptive Sampling Strategy (from Daniel's notes)
         # For small k, we need more samples to reduce variance
@@ -31,6 +32,9 @@ class FWHomotopySolver:
         evals = np.linalg.eigvalsh(self.A)
         self.eta_p = max(evals[0], 1e-9)
         self.eta_1 = evals[-1]
+
+        # Precompute A^2 for CSSP objective evaluation
+        self.A2 = self.A @ self.A
 
     def _get_lmo_solution(self, grad):
         """
@@ -64,7 +68,7 @@ class FWHomotopySolver:
         """
         Solves the problem using FW-Homotopy with Random Restarts.
         """
-        best_val = np.inf
+        best_val = -np.inf
         best_s = None
 
         for run_i in range(n_restarts):
@@ -101,11 +105,17 @@ class FWHomotopySolver:
                 curr_delta = delta_0 * (r ** (l - 1))
 
                 # Compute Gradient
-                # Using grad_z_analytical (gradient of z = -g) for minimization
-                # We use the FIXED xi_samples generated at the start of the restart
-                grad = BooleanRelaxation.grad_z_analytical(
-                    self.p, curr_delta, t, self.A, xi_samples
-                )
+                if self.objective_type == 'portfolio':
+                    # Portfolio: Maximize 1^T A_S^-1 1
+                    grad = BooleanRelaxation.grad_portfolio_analytical(
+                        self.p, curr_delta, t, self.A
+                    )
+                else:
+                    # CSSP: Maximize Tr(X^T P_S X)
+                    # Using grad_z_analytical (gradient of z = -g) for minimization
+                    grad = BooleanRelaxation.grad_z_analytical(
+                        self.p, curr_delta, t, self.A, xi_samples
+                    )
 
                 # LMO: Pick smallest gradients
                 s = self._get_lmo_solution(grad)
@@ -118,9 +128,14 @@ class FWHomotopySolver:
                 dist_to_boundary = np.minimum(t, 1 - t)
                 if np.min(dist_to_boundary) <= 1e-4:
                     curr_delta = self.eta_1
-                    grad_at_s = BooleanRelaxation.grad_z_analytical(
-                        self.p, curr_delta, s, self.A, xi_samples
-                    )
+                    if self.objective_type == 'portfolio':
+                        grad_at_s = BooleanRelaxation.grad_portfolio_analytical(
+                            self.p, curr_delta, s, self.A
+                        )
+                    else:
+                        grad_at_s = BooleanRelaxation.grad_z_analytical(
+                            self.p, curr_delta, s, self.A, xi_samples
+                        )
                     if self._check_kkt(s, grad_at_s):
                         if verbose:
                             print(f"  [Step {l}/{self.n}] Converged Early!")
@@ -133,14 +148,24 @@ class FWHomotopySolver:
 
             # Calculate objective to compare restarts
             idx = np.where(final_s_run > 0.5)[0]
-            try:
-                A_sub = self.A[np.ix_(idx, idx)]
-                val = np.trace(np.linalg.inv(A_sub))
-            except np.linalg.LinAlgError:
-                val = np.inf
+            if len(idx) == 0:
+                val = -np.inf
+            else:
+                try:
+                    A_sub = self.A[np.ix_(idx, idx)]
+                    inv_A_sub = np.linalg.pinv(A_sub)
+                    if self.objective_type == 'portfolio':
+                        # Maximize 1^T A_S^-1 1
+                        val = np.sum(inv_A_sub)
+                    else:
+                        # Maximize Tr( A_S^-1 (A^2)_S )
+                        A2_sub = self.A2[np.ix_(idx, idx)]
+                        val = np.trace(inv_A_sub @ A2_sub)
+                except np.linalg.LinAlgError:
+                    val = -np.inf
 
-            # Keep the best result across restarts
-            if val < best_val:
+            # Keep the best result across restarts (MAXIMIZE)
+            if val > best_val or best_s is None:
                 best_val = val
                 best_s = final_s_run
 
