@@ -1,13 +1,13 @@
 import numpy as np
 import itertools
-import math
+import time
 
 
 class GreedySolver:
     """
-    Standard Greedy Algorithm for Column Subset Selection.
-    Selects one feature at a time to maximize the objective amongst remaining features
-    Complexity: O(k * p) steps (approx).
+    Standard Greedy Algorithm for A-Optimality (Minimizing Trace of Inverse).
+    Selects one feature at a time to MINIMIZE the objective.
+    Complexity: O(k * p) steps.
     """
 
     def __init__(self, A, k):
@@ -17,40 +17,33 @@ class GreedySolver:
 
     def calculate_obj(self, indices):
         """
-        Calculates the Trace Objective for a given set of indices.
-        Obj = Trace( (A_S)^-1 @ (A_S,: @ A_S,:^T) )
+        Calculates the A-Optimality Objective: Trace( (A_S)^-1 )
+        We use pseudo-inverse (pinv) for stability.
         """
         if len(indices) == 0:
-            return 0.0
+            return np.inf
 
-        # Extract Submatrices
         idx = list(indices)
-        A_ss = self.A[np.ix_(idx, idx)]  # The k x k small block
-        A_s_all = self.A[idx, :]  # The k x p rectangular strip
+        A_ss = self.A[np.ix_(idx, idx)]  # The selected submatrix
 
         try:
-            # Note: A_s_all @ A_s_all.T is actually (A^2)_ss
-            # But we compute it explicitly here for clarity
-            numerator = A_s_all @ A_s_all.T
-            return np.trace(np.linalg.inv(A_ss) @ numerator)
+            # Objective: MINIMIZE the Trace of the Inverse
+            return np.trace(np.linalg.pinv(A_ss))
         except np.linalg.LinAlgError:
-            return -1.0
+            return np.inf
 
     def solve(self):
         """
         Runs the Greedy selection process.
         Returns: (best_indices, best_obj, time_taken)
         """
-        import time
-
         start_time = time.time()
-
         current_indices = []
 
         # Greedily add k elements
         for _ in range(self.k):
-            best_imp_idx = -1
-            best_imp_val = -np.inf
+            best_idx = -1
+            best_obj = np.inf
 
             # Try adding every remaining candidate
             candidates = [i for i in range(self.p) if i not in current_indices]
@@ -58,56 +51,55 @@ class GreedySolver:
             for candidate in candidates:
                 # Test combination
                 temp_indices = current_indices + [candidate]
+
+                # Calculate objective (We want the MINIMUM value)
                 val = self.calculate_obj(temp_indices)
 
-                if val > best_imp_val:
-                    best_imp_val = val
-                    best_imp_idx = candidate
+                if val < best_obj:
+                    best_obj = val
+                    best_idx = candidate
 
-            if best_imp_idx != -1:
-                current_indices.append(best_imp_idx)
+            if best_idx != -1:
+                current_indices.append(best_idx)
 
         total_time = time.time() - start_time
         final_obj = self.calculate_obj(current_indices)
 
-        return current_indices, final_obj, total_time
+        return np.array(current_indices), final_obj, total_time
 
 
 class BruteForceSolver:
     """
-    The 'Ground Truth' Solver.
-    Checks EVERY possible combination of k features.
-    WARNING: Only use for tiny problems (p < 20).
+    Exact solver that tries ALL combinations to find the global minimum.
+    Complexity: O(p choose k) - Only for small p!
     """
 
     def __init__(self, A, k):
         self.A = A
-        self.p = A.shape[0]
         self.k = k
-        self.helper = GreedySolver(A, k)  # Reuse calculation logic
+        self.p = A.shape[0]
 
-    def solve(self, safe_mode=True):
-        # 1. Safety Check
-        n_combinations = math.comb(self.p, self.k)
-        if safe_mode and n_combinations > 2_000_000:
-            raise ValueError(
-                f"Brute Force is too dangerous! {n_combinations:,} combinations.\n"
-                f"Set safe_mode=False to override (Computer might freeze)."
-            )
+    def calculate_obj(self, indices):
+        idx = list(indices)
+        A_sub = self.A[np.ix_(idx, idx)]
+        try:
+            return np.trace(np.linalg.pinv(A_sub))
+        except np.linalg.LinAlgError:
+            return np.inf
 
-        print(f"Brute Force: Checking {n_combinations} combinations...")
+    def solve(self):
+        # Start with Infinity because we are MINIMIZING
+        best_obj = np.inf
+        best_idx = None
 
-        best_obj = -np.inf
-        best_indices = None
-
-        # 2. Iterate ALL combinations
+        # Try all combinations of size k
         for indices in itertools.combinations(range(self.p), self.k):
-            # Convert tuple to list
-            idx_list = list(indices)
-            obj = self.helper.calculate_obj(idx_list)
+            # Calculate A-Optimality
+            obj = self.calculate_obj(indices)
 
-            if obj > best_obj:
+            # Update if we found a smaller (better) objective
+            if obj < best_obj:
                 best_obj = obj
-                best_indices = idx_list
+                best_idx = list(indices)
 
-        return best_indices, best_obj
+        return np.array(best_idx), best_obj

@@ -5,7 +5,7 @@ from grad_verif.core import BooleanRelaxation
 class FWHomotopySolver:
     """
     Frank-Wolfe Homotopy Solver for Column Subset Selection.
-    Includes Tikhonov Regularization and Numerical Stability Clips.
+    Corrected for MINIMIZATION of the A-Optimality objective.
     """
 
     def __init__(self, A, k, alpha=0.01, n_steps=500, n_mc_samples=50):
@@ -15,101 +15,121 @@ class FWHomotopySolver:
         self.n = n_steps
         self.n_mc = n_mc_samples
 
-        # --- FIX 1: Tikhonov Regularization ---
-        # Prevents singularity crashes.
+        # Tikhonov Regularization (Safety against singularity)
         A_reg = A + 1e-6 * np.eye(self.raw_p)
 
-        # --- FIX 2: Spectral Normalization ---
-        # Scales largest eigenvalue to 1.0 for consistent hyperparams.
-        spectral_norm = np.linalg.norm(A_reg, 2)
-        self.A = A_reg / spectral_norm
+        self.A = A_reg
         self.p = self.raw_p
-        self.scale_factor = spectral_norm
 
-        # --- Eigenvalue Calculation ---
+        # Eigenvalue Calculation
         evals = np.linalg.eigvalsh(self.A)
         self.eta_p = max(evals[0], 1e-9)
         self.eta_1 = evals[-1]
 
     def _get_lmo_solution(self, grad):
-        idx = np.argpartition(grad, -self.k)[-self.k :]
+        """
+        LMO for MINIMIZATION:
+        Select indices corresponding to the k SMALLEST gradients.
+        """
+        # argpartition moves the k smallest elements to the front
+        idx = np.argpartition(grad, self.k)[: self.k]
+
         s = np.zeros(self.p)
         s[idx] = 1.0
         return s
 
     def _check_kkt(self, current_s, grad):
+        """
+        KKT Optimality Check for MINIMIZATION.
+        max(grad[selected]) <= min(grad[unselected])
+        """
         idx_selected = np.where(current_s > 0.5)[0]
         idx_unselected = np.where(current_s <= 0.5)[0]
 
         if len(idx_selected) == 0 or len(idx_unselected) == 0:
             return True
 
-        min_selected = np.min(grad[idx_selected])
-        max_unselected = np.max(grad[idx_unselected])
+        max_selected = np.max(grad[idx_selected])
+        min_unselected = np.min(grad[idx_unselected])
 
-        return min_selected >= max_unselected - 1e-6
+        return max_selected <= min_unselected + 1e-6
 
-    def solve(self, verbose=True):
-        # 1. Initialization
-        epsilon = 0.1 * (self.k / self.p)
+    def solve(self, n_restarts=1, verbose=True):
+        """
+        Solves the problem using FW-Homotopy with Random Restarts.
+        """
+        best_val = np.inf
+        best_s = None
 
-        # Theoretical delta
-        theoretical_delta = (3 * self.eta_p * epsilon**2) / (1 + 3 * epsilon**2)
+        for run_i in range(n_restarts):
+            if verbose and n_restarts > 1:
+                print(f"--- Restart {run_i+1}/{n_restarts} ---")
 
-        # --- FIX 3: Engineering Safety Floor ---
-        # Ensures gradient signal is strong enough to escape local optima.
-        delta_0 = max(theoretical_delta, 0.001)
+            # --- 1. Initialization ---
+            epsilon = 0.1 * (self.k / self.p)
+            theoretical_delta = (3 * self.eta_p * epsilon**2) / (1 + 3 * epsilon**2)
 
-        # Decay/Growth Rate (Targeting eta_1)
-        if self.n > 1:
-            if delta_0 < self.eta_1:
-                r = (self.eta_1 / delta_0) ** (1 / (self.n - 1))
+            # Safety Floor: Prevents "wandering" in flat regions
+            delta_0 = max(theoretical_delta, 0.001)
+
+            # Decay Rate
+            if self.n > 1:
+                if delta_0 < self.eta_1:
+                    r = (self.eta_1 / delta_0) ** (1 / (self.n - 1))
+                else:
+                    r = 1.0
             else:
                 r = 1.0
-        else:
-            r = 1.0
 
-        # Start unbiased
-        t = np.full(self.p, self.k / self.p)
-        curr_delta = delta_0
+            t = np.full(self.p, self.k / self.p)
+            curr_delta = delta_0
 
-        if verbose:
-            print(f"Starting FW-Homotopy: p={self.p}, k={self.k}")
+            # --- 2. Optimization Loop ---
+            for l in range(1, self.n + 1):
+                curr_delta = delta_0 * (r ** (l - 1))
 
-        # 2. Main Loop
-        for l in range(1, self.n + 1):
-            curr_delta = delta_0 * (r ** (l - 1))
+                xi_samples = [
+                    np.random.choice([-1, 1], size=self.p) for _ in range(self.n_mc)
+                ]
 
-            # Stochastic Gradient Estimation
-            xi_samples = [
-                np.random.choice([-1, 1], size=self.p) for _ in range(self.n_mc)
-            ]
-
-            grad = BooleanRelaxation.grad_g_analytical(
-                self.p, curr_delta, t, self.A, xi_samples
-            )
-
-            # Frank-Wolfe Step
-            s = self._get_lmo_solution(grad)
-            t = (1 - self.alpha) * t + self.alpha * s
-
-            # --- FIX 4: Solution Clipping (New!) ---
-            # Keep t away from 0.0 and 1.0 to prevent numerical explosion
-            # in gradient calculations (div by zero).
-            t = np.clip(t, 0.001, 0.999)
-
-            # 3. Optimality Check (Early Exit)
-            dist_to_boundary = np.minimum(t, 1 - t)
-
-            if np.min(dist_to_boundary) <= 1e-4:
-                grad_at_s = BooleanRelaxation.grad_g_analytical(
-                    self.p, curr_delta, s, self.A, xi_samples
+                # Compute Gradient (No Sign Flip needed for Minimization)
+                grad = BooleanRelaxation.grad_g_analytical(
+                    self.p, curr_delta, t, self.A, xi_samples
                 )
-                if self._check_kkt(s, grad_at_s):
-                    if verbose:
-                        print(f"  [Step {l}/{self.n}] Converged Early!")
-                    return s
 
-        # 4. Final Rounding
-        final_s = self._get_lmo_solution(t)
-        return final_s
+                # LMO: Pick smallest gradients
+                s = self._get_lmo_solution(grad)
+
+                # Update t
+                t = (1 - self.alpha) * t + self.alpha * s
+                t = np.clip(t, 0.001, 0.999)
+
+                # Early Exit Check
+                dist_to_boundary = np.minimum(t, 1 - t)
+                if np.min(dist_to_boundary) <= 1e-4:
+                    grad_at_s = BooleanRelaxation.grad_g_analytical(
+                        self.p, curr_delta, s, self.A, xi_samples
+                    )
+                    if self._check_kkt(s, grad_at_s):
+                        if verbose:
+                            print(f"  [Step {l}/{self.n}] Converged Early!")
+                        # Break inner loop, use current 's' as result for this run
+                        break
+
+            # --- 3. Final Evaluation for this Restart ---
+            final_s_run = self._get_lmo_solution(t)
+
+            # Calculate objective to compare restarts
+            idx = np.where(final_s_run > 0.5)[0]
+            try:
+                A_sub = self.A[np.ix_(idx, idx)]
+                val = np.trace(np.linalg.inv(A_sub))
+            except np.linalg.LinAlgError:
+                val = np.inf
+
+            # Keep the best result across restarts
+            if val < best_val:
+                best_val = val
+                best_s = final_s_run
+
+        return best_s
