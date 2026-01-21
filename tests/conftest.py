@@ -4,7 +4,7 @@ import os
 import sys
 from datetime import datetime
 
-LOG_FILE = "benchmark_log.csv"
+LOG_FILE = "logs/benchmark_log.csv"
 SESSION_RESULTS = []  # Store results here for the terminal summary
 
 
@@ -15,6 +15,9 @@ def pytest_addoption(parser):
 @pytest.fixture(scope="session")
 def benchmark_logger(request):
     user_note = request.config.getoption("--msg")
+
+    # Ensure logs directory exists
+    os.makedirs("logs", exist_ok=True)
 
     # 1. Create CSV if missing
     if not os.path.exists(LOG_FILE):
@@ -49,6 +52,7 @@ def benchmark_logger(request):
         g_time=None,
         fw_time=None,
         status="PASS",
+        dataset_name="SECOM",
     ):
 
         # Calculate Derived Metrics
@@ -75,7 +79,7 @@ def benchmark_logger(request):
             writer.writerow(
                 [
                     timestamp,
-                    "SECOM",
+                    dataset_name,
                     test_name,
                     k,
                     steps,
@@ -125,3 +129,68 @@ def pytest_sessionfinish(session, exitstatus):
         )
 
     print("=" * 65 + "\n")
+
+
+SWEEP_LOG_FILE = "logs/param_sweep_log.csv"
+
+@pytest.fixture(scope="session")
+def sweep_logger():
+    # Ensure logs directory exists
+    os.makedirs("logs", exist_ok=True)
+
+    # 1. Create CSV if missing
+    if not os.path.exists(SWEEP_LOG_FILE):
+        with open(SWEEP_LOG_FILE, mode="w", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow(
+                [
+                    "Timestamp",
+                    "Experiment",
+                    "k",
+                    "Steps",
+                    "Samples",
+                    "Greedy_Obj",
+                    "FW_Obj",
+                    "Ratio",
+                    "Greedy_Time_s",
+                    "FW_Time_s",
+                    "Speedup_x",
+                    "Status",
+                ]
+            )
+
+    def log_sweep(
+        experiment_name,
+        k,
+        steps,
+        samples,
+        g_obj,
+        fw_obj,
+        g_time,
+        fw_time,
+        status="DONE",
+    ):
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        ratio = (fw_obj / g_obj) if (fw_obj and g_obj) else 0.0
+        speedup = (g_time / fw_time) if (g_time and fw_time and fw_time > 0) else 0.0
+
+        with open(SWEEP_LOG_FILE, mode="a", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow(
+                [
+                    timestamp,
+                    experiment_name,
+                    k,
+                    steps,
+                    samples,
+                    f"{g_obj:.4f}",
+                    f"{fw_obj:.4f}",
+                    f"{ratio:.4f}",
+                    f"{g_time:.4f}",
+                    f"{fw_time:.4f}",
+                    f"{speedup:.2f}",
+                    status,
+                ]
+            )
+
+    return log_sweep

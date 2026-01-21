@@ -53,6 +53,7 @@ def run_comparison(test_name, A, k, steps, samples, logger, threshold=1.10, rest
         g_time=g_time,
         fw_time=fw_time,
         status=status,
+        dataset_name="SECOM",
     )
     return ratio, speedup
 
@@ -135,5 +136,6 @@ def test_secom_stability(secom_data, benchmark_logger):
         samples,
         fw_obj=mean_obj,
         status=f"{status} (CV={cv:.1f}%)",
+        dataset_name="SECOM",
     )
     assert cv < 5.0, f"Unstable! CV: {cv:.2f}%"

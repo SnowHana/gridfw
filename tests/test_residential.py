@@ -6,8 +6,15 @@ from grad_fw.benchmarks import GreedySolver
 from grad_fw.data_loader import load_dataset
 
 
-def test_real_world_benchmark():
-    print("\n\n=== BENCHMARK: Residential Building (Accuracy) ===")
+def test_medium_accuracy_stability(benchmark_logger):
+    """
+    Medium-level test on Residential Building dataset (p=103).
+    Goals:
+    1. Accuracy: FW Objective should be within 1.35x of Greedy (Ratio < 1.35).
+       (User noted 1.1-1.3 is promising).
+    2. Stability: Coefficient of Variation (CV) < 5%.
+    """
+    print("\n\n=== BENCHMARK: Residential Building (Medium Setup) ===")
 
     # Load via string name
     A, _ = load_dataset("residential")
@@ -15,44 +22,78 @@ def test_real_world_benchmark():
         pytest.skip("Could not load dataset.")
 
     p = A.shape[0]
-    k = 10
+    k = 20  # Medium k for p=103
+    steps = 2000
+    samples = 500
 
     print(f"Problem: Select k={k} from p={p}")
 
     # 1. Greedy (Baseline)
     print("\n[1] Running Greedy...")
     greedy = GreedySolver(A, k)
-    start = time.time()
+    t0 = time.time()
     _, g_obj, g_time = greedy.solve()
     print(f"    Greedy: Obj={g_obj:.4f} | Time={g_time:.4f}s")
 
-    # 2. FW-Homotopy (Multi-Start)
-    print("\n[2] Running FW-Homotopy (Multi-Start)...")
-    solver = FWHomotopySolver(A, k, alpha=0.01, n_steps=1000, n_mc_samples=200)
+    # 2. FW-Homotopy (Stability Run)
+    n_runs = 10
+    print(f"\n[2] Running FW-Homotopy ({n_runs} runs for stability)...")
+    
+    # Using parameters that balance speed and accuracy for medium setup
+    solver = FWHomotopySolver(A, k, alpha=0.01, n_steps=steps, n_mc_samples=samples)
 
-    n_restarts = 5
-    best_fw_obj = -np.inf
+    fw_objs = []
     total_time = 0
 
-    for i in range(n_restarts):
+    for i in range(n_runs):
         t0 = time.time()
-        s_fw = solver.solve(verbose=False)
-        total_time += time.time() - t0
+        # Single restart per run to test stability of the stochastic algorithm itself
+        s_fw = solver.solve(n_restarts=1, verbose=False)
+        run_time = time.time() - t0
+        total_time += run_time
 
         indices = np.where(s_fw > 0.5)[0]
         obj = greedy.calculate_obj(list(indices))
-        if obj > best_fw_obj:
-            best_fw_obj = obj
+        fw_objs.append(obj)
+        # print(f"    Run {i+1}: {obj:.4f}")
 
-    print(f"    FW Best: Obj={best_fw_obj:.4f} | Avg Time={total_time/n_restarts:.4f}s")
+    fw_mean = np.mean(fw_objs)
+    fw_std = np.std(fw_objs)
+    cv = fw_std / fw_mean if fw_mean != 0 else 0.0
+    
+    ratio = fw_mean / g_obj
 
-    ratio = best_fw_obj / g_obj
-    print(f"--- Result: Ratio {ratio:.2%} ---")
+    print(f"\n--- Results ---")
+    print(f"    FW Mean Obj: {fw_mean:.4f}")
+    print(f"    FW Std Dev:  {fw_std:.4f}")
+    print(f"    FW CV:       {cv:.2%}")
+    print(f"    Ratio (FW/G): {ratio:.4f}")
+    print(f"    Avg Time:    {total_time/n_runs:.4f}s")
 
-    assert ratio > 0.95, f"Accuracy too low: {ratio:.2f}"
+    # Log Result
+    status = "PASS" if (ratio < 1.35 and cv < 0.05) else "FAIL"
+    benchmark_logger(
+        "residential_medium_stability",
+        k,
+        steps,
+        samples,
+        g_obj=g_obj,
+        fw_obj=fw_mean,
+        g_time=g_time,
+        fw_time=total_time/n_runs,
+        status=f"{status} (CV={cv:.1f}%)",
+        dataset_name="Residential",
+    )
+
+    # Assertions based on user goals
+    # Ratio around 1.1 - 1.3 is considered promising
+    assert ratio < 1.35, f"Accuracy too low: Ratio {ratio:.2f} > 1.35"
+    
+    # CV should be around 3% (assert < 5% for safety)
+    assert cv < 0.05, f"Instability detected: CV {cv:.2%} > 5%"
 
 
-def test_scalability_k40():
+def test_scalability_k40(benchmark_logger):
     print("\n\n=== BENCHMARK: Residential Building (Scalability k=40) ===")
     A, _ = load_dataset("residential")
     if A is None:
@@ -60,38 +101,44 @@ def test_scalability_k40():
 
     p = A.shape[0]
     k = 40
+    steps = 600
+    samples = 50
 
-    # 1. Random Baseline (Check if problem is hard)
-    print("[1] Random Baseline...")
-    rand_objs = []
-    helper = GreedySolver(A, k)
-    for _ in range(50):
-        idx = np.random.choice(p, k, replace=False)
-        rand_objs.append(helper.calculate_obj(idx))
-    avg_rand = np.mean(rand_objs)
-    print(f"    Random Avg: {avg_rand:.4f}")
-
-    # 2. Greedy
-    print("\n[2] Greedy...")
+    # 1. Greedy
+    print("\n[1] Greedy...")
     greedy = GreedySolver(A, k)
     t0 = time.time()
     _, g_obj, _ = greedy.solve()
     g_time = time.time() - t0
-    print(f"    Greedy: {g_time:.4f}s")
+    print(f"    Greedy: Obj={g_obj:.4f} ({g_time:.4f}s)")
 
-    # 3. FW-Homotopy
-    print("\n[3] FW-Homotopy...")
-    solver = FWHomotopySolver(A, k, alpha=0.01, n_steps=600, n_mc_samples=50)
+    # 2. FW-Homotopy
+    print("\n[2] FW-Homotopy...")
+    solver = FWHomotopySolver(A, k, alpha=0.01, n_steps=steps, n_mc_samples=samples)
     t0 = time.time()
-    s_fw = solver.solve(verbose=False)
+    s_fw = solver.solve(n_restarts=1, verbose=False)
     fw_time = time.time() - t0
 
     indices = np.where(s_fw > 0.5)[0]
     fw_obj = greedy.calculate_obj(list(indices))
-    print(f"    FW:     {fw_time:.4f}s")
+    
+    ratio = fw_obj / g_obj
+    print(f"    FW: Obj={fw_obj:.4f} ({fw_time:.4f}s)")
+    print(f"    Ratio: {ratio:.4f}")
 
-    print(f"\n--- Scalability Verdict ---")
-    print(f"Improvement over Random: {((fw_obj-avg_rand)/avg_rand)*100:.1f}%")
-    print(f"Time Diff: {fw_time - g_time:.4f}s")
+    status = "PASS" if ratio < 1.40 else "FAIL"
+    benchmark_logger(
+        "residential_scalability_k40",
+        k,
+        steps,
+        samples,
+        g_obj=g_obj,
+        fw_obj=fw_obj,
+        g_time=g_time,
+        fw_time=fw_time,
+        status=status,
+        dataset_name="Residential",
+    )
 
-    assert fw_obj / g_obj > 0.90, "Optimization collapsed at high k"
+    # Allow slightly higher ratio for larger k/scalability test
+    assert ratio < 1.40, f"Optimization collapsed at high k: Ratio {ratio:.2f}"
