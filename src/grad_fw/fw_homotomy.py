@@ -13,7 +13,13 @@ class FWHomotopySolver:
         self.k = k
         self.alpha = alpha
         self.n = n_steps
-        self.n_mc = n_mc_samples
+        
+        # Adaptive Sampling Strategy (from Daniel's notes)
+        # For small k, we need more samples to reduce variance
+        if self.k < 20 and n_mc_samples == 50:
+            self.n_mc = 300
+        else:
+            self.n_mc = n_mc_samples
 
         # Tikhonov Regularization (Safety against singularity)
         A_reg = A + 1e-6 * np.eye(self.raw_p)
@@ -84,16 +90,19 @@ class FWHomotopySolver:
             t = np.full(self.p, self.k / self.p)
             curr_delta = delta_0
 
+            # --- Sample Generation (SAA) ---
+            # Create m Rademacher vectors at the start of the run (per restart)
+            xi_samples = [
+                np.random.choice([-1, 1], size=self.p) for _ in range(self.n_mc)
+            ]
+
             # --- 2. Optimization Loop ---
             for l in range(1, self.n + 1):
                 curr_delta = delta_0 * (r ** (l - 1))
 
-                xi_samples = [
-                    np.random.choice([-1, 1], size=self.p) for _ in range(self.n_mc)
-                ]
-
                 # Compute Gradient
                 # Using grad_z_analytical (gradient of z = -g) for minimization
+                # We use the FIXED xi_samples generated at the start of the restart
                 grad = BooleanRelaxation.grad_z_analytical(
                     self.p, curr_delta, t, self.A, xi_samples
                 )
