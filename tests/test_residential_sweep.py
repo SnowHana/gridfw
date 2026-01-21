@@ -14,8 +14,16 @@ def residential_data():
     return A
 
 
-def run_experiment(A, k, steps, samples, experiment_name, logger):
-    print(f"\n--- {experiment_name} (k={k}, steps={steps}, n_mc={samples}) ---")
+@pytest.fixture(scope="module")
+def secom_data():
+    A, _ = load_dataset("secom")
+    if A is None:
+        pytest.skip("Could not load secom data")
+    return A
+
+
+def run_experiment(A, k, steps, samples, experiment_name, logger, alpha=0.01):
+    print(f"\n--- {experiment_name} (k={k}, steps={steps}, n_mc={samples}, alpha={alpha}) ---")
     
     # 1. Greedy (Baseline)
     greedy = GreedySolver(A, k)
@@ -24,7 +32,7 @@ def run_experiment(A, k, steps, samples, experiment_name, logger):
     g_time = time.time() - t0
 
     # 2. FW-Homotopy
-    solver = FWHomotopySolver(A, k, alpha=0.01, n_steps=steps, n_mc_samples=samples)
+    solver = FWHomotopySolver(A, k, alpha=alpha, n_steps=steps, n_mc_samples=samples)
     t0 = time.time()
     s_fw = solver.solve(n_restarts=1, verbose=False)
     fw_time = time.time() - t0
@@ -50,7 +58,7 @@ def run_experiment(A, k, steps, samples, experiment_name, logger):
 
 def test_sweep_vary_k(residential_data, sweep_logger):
     """Experiment 1: Vary k with fixed steps/samples."""
-    k_values = [10, 20, 30, 40, 50]
+    k_values = [10, 20, 30, 40, 50, 60]
     steps = 800
     samples = 100
 
@@ -64,6 +72,23 @@ def test_sweep_vary_k(residential_data, sweep_logger):
             sweep_logger
         )
 
+
+
+def test_secom_sweep_vary_k(secom_data, sweep_logger):
+    """Experiment 2: Vary k with fixed steps/samples on secom data."""
+    k_values = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
+    steps = 800
+    samples = 100
+
+    for k in k_values:
+        run_experiment(
+            secom_data, 
+            k, 
+            steps, 
+            samples, 
+            "vary_k", 
+            sweep_logger
+        )
 
 def test_sweep_vary_nmc(residential_data, sweep_logger):
     """Experiment 2: Vary n_mc at k=10 (problematic case)."""
@@ -148,3 +173,37 @@ def test_sweep_vary_steps(residential_data, sweep_logger):
 #             "portfolio_vary_k", 
 #             sweep_logger
 #         )
+
+
+def test_sweep_large_synthetic(sweep_logger):
+    """Experiment 5: Large Synthetic Problem (p=500, k=50)."""
+    p = 500
+    k = 50
+    steps = 1000
+    samples = 50
+    
+    print(f"\n=== Large Synthetic Problem (p={p}, k={k}) ===")
+    np.random.seed(42)
+    X = np.random.randn(1000, p)
+    A = X.T @ X
+    
+    run_experiment(A, k, steps, samples, "large_synthetic", sweep_logger)
+
+
+def test_sweep_vary_alpha(residential_data, sweep_logger):
+    """Experiment 6: Vary Alpha (Homotopy Step Size)."""
+    k = 20
+    steps = 1000
+    samples = 100
+    alpha_values = [0.001, 0.01, 0.05, 0.1]
+
+    for alpha in alpha_values:
+        run_experiment(
+            residential_data, 
+            k, 
+            steps, 
+            samples, 
+            f"vary_alpha_{alpha}", 
+            sweep_logger,
+            alpha=alpha
+        )
