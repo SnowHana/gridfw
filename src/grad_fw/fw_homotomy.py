@@ -15,7 +15,7 @@ class FWHomotopySolver:
         self.n = n_steps
         self.objective_type = objective_type
         
-        # Adaptive Sampling Strategy (from Daniel's notes)
+        # Adaptive Sampling Strategy
         # For small k, we need more samples to reduce variance
         if self.k < 20 and n_mc_samples == 50:
             self.n_mc = 300
@@ -29,12 +29,14 @@ class FWHomotopySolver:
         self.p = self.raw_p
 
         # Eigenvalue Calculation
-        evals = np.linalg.eigvalsh(self.A)
+        evals = np.linalg.eigvalsh(self.A)  # O(p^3)
         self.eta_p = max(evals[0], 1e-9)
         self.eta_1 = evals[-1]
 
         # Precompute A^2 for CSSP objective evaluation
-        self.A2 = self.A @ self.A
+        self.A2 = self.A @ self.A  # O(p^2)
+
+        # Init. takes O(p^3)
 
     def _get_lmo_solution(self, grad):
         """
@@ -42,7 +44,7 @@ class FWHomotopySolver:
         Select indices corresponding to the k SMALLEST gradients.
         """
         # argpartition moves the k smallest elements to the front
-        idx = np.argpartition(grad, self.k)[: self.k]
+        idx = np.argpartition(grad, self.k)[: self.k]   # O(p)
 
         s = np.zeros(self.p)
         s[idx] = 1.0
@@ -54,13 +56,13 @@ class FWHomotopySolver:
         max(grad[selected]) <= min(grad[unselected])
         """
         idx_selected = np.where(current_s > 0.5)[0]
-        idx_unselected = np.where(current_s <= 0.5)[0]
+        idx_unselected = np.where(current_s <= 0.5)[0]   # O(p)
 
         if len(idx_selected) == 0 or len(idx_unselected) == 0:
             return True
 
-        max_selected = np.max(grad[idx_selected])
-        min_unselected = np.min(grad[idx_unselected])
+        max_selected = np.max(grad[idx_selected])   # O(k)
+        min_unselected = np.min(grad[idx_unselected])   # O(p-k)
 
         return max_selected <= min_unselected + 1e-6
 
@@ -71,7 +73,7 @@ class FWHomotopySolver:
         best_val = -np.inf
         best_s = None
 
-        for run_i in range(n_restarts):
+        for run_i in range(n_restarts): # O(n_restarts)
             if verbose and n_restarts > 1:
                 print(f"--- Restart {run_i+1}/{n_restarts} ---")
 
@@ -91,17 +93,17 @@ class FWHomotopySolver:
             else:
                 r = 1.0
 
-            t = np.full(self.p, self.k / self.p)
+            t = np.full(self.p, self.k / self.p)   # O(p)
             curr_delta = delta_0
 
             # --- Sample Generation (SAA) ---
             # Create m Rademacher vectors at the start of the run (per restart)
             xi_samples = [
                 np.random.choice([-1, 1], size=self.p) for _ in range(self.n_mc)
-            ]
+            ]   # O(n_mc * p)
 
             # --- 2. Optimization Loop ---
-            for l in range(1, self.n + 1):
+            for l in range(1, self.n + 1): # O(n)
                 curr_delta = delta_0 * (r ** (l - 1))
 
                 # Compute Gradient
@@ -118,7 +120,7 @@ class FWHomotopySolver:
                     )
 
                 # LMO: Pick smallest gradients
-                s = self._get_lmo_solution(grad)
+                s = self._get_lmo_solution(grad)   # O(p)
 
                 # Update t
                 t = (1 - self.alpha) * t + self.alpha * s
@@ -135,7 +137,7 @@ class FWHomotopySolver:
                     else:
                         grad_at_s = BooleanRelaxation.grad_z_analytical(
                             self.p, curr_delta, s, self.A, xi_samples
-                        )
+                        )   # O(p^3 + p^2 * n_mc)
                     if self._check_kkt(s, grad_at_s):
                         if verbose:
                             print(f"  [Step {l}/{self.n}] Converged Early!")
@@ -153,7 +155,7 @@ class FWHomotopySolver:
             else:
                 try:
                     A_sub = self.A[np.ix_(idx, idx)]
-                    inv_A_sub = np.linalg.pinv(A_sub)
+                    inv_A_sub = np.linalg.pinv(A_sub)   # O(p^3)
                     if self.objective_type == 'portfolio':
                         # Maximize 1^T A_S^-1 1
                         val = np.sum(inv_A_sub)
@@ -168,5 +170,5 @@ class FWHomotopySolver:
             if val > best_val or best_s is None:
                 best_val = val
                 best_s = final_s_run
-
+        # Overall timecomplexity: O(n_restarts * n * p^3 + n_restarts * n * p^2 * n_mc)
         return best_s

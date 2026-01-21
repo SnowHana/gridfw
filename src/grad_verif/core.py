@@ -130,18 +130,19 @@ class BooleanRelaxation:
     def grad_g_analytical(p, delta, t, A, xi_samples):
         """grad_g_analytical Computes gradient of g
         (Estimated expectation of f over subset of Rademacher vectors)
+        Time Complexity: O(p^3 + p^2 * n_mc)
         """
         t_safe = np.clip(t, 1e-9, 1.0)
         
         # Dt = T^-2 - I
-        Dt = np.diag(1.0 / (t_safe**2)) - np.eye(p)
+        Dt = np.diag(1.0 / (t_safe**2)) - np.eye(p)   # O(p)
         Pi_t = A + delta * Dt
         
         # Batch solve: Pi_t @ X = B, where B = A @ xi_samples.T
         # This is O(p^3 + p^2 * N) instead of O(p^3 + p^2 * N) but with better constants
         # and avoids explicit inversion.
-        B = A @ np.array(xi_samples).T
-        X = np.linalg.solve(Pi_t, B)
+        B = A @ np.array(xi_samples).T # O(p * n_mc)
+        X = np.linalg.solve(Pi_t, B) # O(p^3)
         
         # Gradient component j is (2 * delta / t_j^3) * mean(X_j^2)
         grad_sum = np.sum(X**2, axis=1)
@@ -184,6 +185,7 @@ class BooleanRelaxation:
         """
         Gradient of z = -g.
         Used for MINIMIZATION problems.
+        Time Complexity: O(p^3 + p^2 * n_mc)
         """
         return -BooleanRelaxation.grad_g_analytical(p, delta, t, A, xi_samples)
 

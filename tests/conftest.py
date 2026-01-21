@@ -145,6 +145,8 @@ def sweep_logger():
             writer.writerow(
                 [
                     "Timestamp",
+                    "Dataset",
+                    "p",
                     "Experiment",
                     "k",
                     "Steps",
@@ -169,6 +171,8 @@ def sweep_logger():
         g_time,
         fw_time,
         status="DONE",
+        dataset_name="Residential",
+        p=103,
     ):
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         ratio = (fw_obj / g_obj) if (fw_obj and g_obj) else 0.0
@@ -179,6 +183,8 @@ def sweep_logger():
             writer.writerow(
                 [
                     timestamp,
+                    dataset_name,
+                    p,
                     experiment_name,
                     k,
                     steps,

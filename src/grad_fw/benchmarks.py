@@ -20,9 +20,12 @@ class GreedyAOptSolver:
         idx = list(indices)
         A_ss = self.A[np.ix_(idx, idx)]
         try:
-            return np.trace(np.linalg.pinv(A_ss))
+            return np.trace(np.linalg.inv(A_ss))
         except np.linalg.LinAlgError:
-            return np.inf
+            try:
+                return np.trace(np.linalg.pinv(A_ss))
+            except np.linalg.LinAlgError:
+                return np.inf
 
     def solve(self):
         start_time = time.time()
@@ -70,10 +73,16 @@ class GreedySolver:
 
         try:
             # Objective: MAXIMIZE Tr( A_SS^-1 A2_SS )
-            inv_A_ss = np.linalg.pinv(A_ss)
+            # Try fast inverse first
+            inv_A_ss = np.linalg.inv(A_ss)
             return np.trace(inv_A_ss @ A2_ss)
         except np.linalg.LinAlgError:
-            return 0.0
+            try:
+                # Fallback to pseudo-inverse
+                inv_A_ss = np.linalg.pinv(A_ss)
+                return np.trace(inv_A_ss @ A2_ss)
+            except np.linalg.LinAlgError:
+                return 0.0
 
     def solve(self):
         start_time = time.time()
@@ -118,9 +127,12 @@ class BruteForceSolver:
         idx = list(indices)
         A_sub = self.A[np.ix_(idx, idx)]
         try:
-            return np.trace(np.linalg.pinv(A_sub))
+            return np.trace(np.linalg.inv(A_sub))
         except np.linalg.LinAlgError:
-            return np.inf
+            try:
+                return np.trace(np.linalg.pinv(A_sub))
+            except np.linalg.LinAlgError:
+                return np.inf
 
     def solve(self):
         # Start with Infinity because we are MINIMIZING
@@ -160,14 +172,18 @@ class GreedyPortfolioSolver:
             return -np.inf  # We want to MAXIMIZE
 
         idx = list(indices)
-        A_ss = self.A[np.ix_(idx, idx)]
+        A_ss = self.A[np.ix_(idx, idx)]  # O(k^2) for k x k A_ss
 
         try:
             # Objective: MAXIMIZE sum of inverse elements
-            inv = np.linalg.pinv(A_ss)
-            return np.sum(inv)
+            inv = np.linalg.inv(A_ss)  # O(k^3) for k x k A_ss
+            return np.sum(inv)  # O(k^2)
         except np.linalg.LinAlgError:
-            return -np.inf
+            try:
+                inv = np.linalg.pinv(A_ss)
+                return np.sum(inv)
+            except np.linalg.LinAlgError:
+                return -np.inf
 
     def solve(self):
         start_time = time.time()
@@ -180,9 +196,9 @@ class GreedyPortfolioSolver:
 
             candidates = [i for i in range(self.p) if i not in current_indices]
 
-            for candidate in candidates:
+            for candidate in candidates:    # O(p)
                 temp_indices = current_indices + [candidate]
-                val = self.calculate_obj(temp_indices)
+                val = self.calculate_obj(temp_indices)    # O(k^3)  for k x k A_ss
 
                 if val > best_obj:
                     best_obj = val
@@ -190,8 +206,9 @@ class GreedyPortfolioSolver:
 
             if best_idx != -1:
                 current_indices.append(best_idx)
+        # O(p * k^3)
 
         total_time = time.time() - start_time
-        final_obj = self.calculate_obj(current_indices)
-
+        final_obj = self.calculate_obj(current_indices)    # O(k^3) for k x k A_ss
+        # Overall O(p * k^3)
         return np.array(current_indices), final_obj, total_time
