@@ -92,8 +92,9 @@ class FWHomotopySolver:
                     np.random.choice([-1, 1], size=self.p) for _ in range(self.n_mc)
                 ]
 
-                # Compute Gradient (No Sign Flip needed for Minimization)
-                grad = BooleanRelaxation.grad_g_analytical(
+                # Compute Gradient
+                # Using grad_z_analytical (gradient of z = -g) for minimization
+                grad = BooleanRelaxation.grad_z_analytical(
                     self.p, curr_delta, t, self.A, xi_samples
                 )
 
@@ -107,7 +108,8 @@ class FWHomotopySolver:
                 # Early Exit Check
                 dist_to_boundary = np.minimum(t, 1 - t)
                 if np.min(dist_to_boundary) <= 1e-4:
-                    grad_at_s = BooleanRelaxation.grad_g_analytical(
+                    curr_delta = self.eta_1
+                    grad_at_s = BooleanRelaxation.grad_z_analytical(
                         self.p, curr_delta, s, self.A, xi_samples
                     )
                     if self._check_kkt(s, grad_at_s):
@@ -117,7 +119,8 @@ class FWHomotopySolver:
                         break
 
             # --- 3. Final Evaluation for this Restart ---
-            final_s_run = self._get_lmo_solution(t)
+            # We want to pick indices with LARGEST t, so we pass -t to LMO (which picks smallest)
+            final_s_run = self._get_lmo_solution(-t)
 
             # Calculate objective to compare restarts
             idx = np.where(final_s_run > 0.5)[0]

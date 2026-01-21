@@ -173,3 +173,21 @@ class BooleanRelaxation:
             t_m[i] -= h
             grad[i] = (get_g(t_p) - get_g(t_m)) / (2 * h)
         return grad
+
+    # --- Convenience Methods for Minimization (h = -f, z = -g) ---
+
+    @staticmethod
+    def grad_h_analytical(p, delta, t, b, A):
+        """
+        Gradient of h = -f.
+        Used for MINIMIZATION problems.
+        """
+        return -BooleanRelaxation.grad_f_analytical(p, delta, t, b, A)
+
+    @staticmethod
+    def grad_z_analytical(p, delta, t, A, xi_samples):
+        """
+        Gradient of z = -g.
+        Used for MINIMIZATION problems.
+        """
+        return -BooleanRelaxation.grad_g_analytical(p, delta, t, A, xi_samples)
