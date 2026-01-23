@@ -131,7 +131,9 @@ def pytest_sessionfinish(session, exitstatus):
     print("=" * 65 + "\n")
 
 
+
 SWEEP_LOG_FILE = "logs/param_sweep_log.csv"
+GRAD_LOG_FILE = "logs/grad_test_log.csv"
 
 @pytest.fixture(scope="session")
 def sweep_logger():
@@ -200,3 +202,31 @@ def sweep_logger():
             )
 
     return log_sweep
+
+
+# --- NEW: Automatic Logging for Gradient Tests ---
+def pytest_runtest_logreport(report):
+    """
+    Automatically logs results of tests in 'tests/grad/' to a CSV.
+    """
+    if report.when == 'call':
+        # Check if the test is in the 'grad' directory
+        if 'tests/grad/' in report.nodeid:
+            os.makedirs("logs", exist_ok=True)
+            
+            # Initialize CSV if missing
+            if not os.path.exists(GRAD_LOG_FILE):
+                with open(GRAD_LOG_FILE, mode="w", newline="") as f:
+                    writer = csv.writer(f)
+                    writer.writerow(["Timestamp", "Test_Name", "Outcome", "Duration_s"])
+            
+            # Log the result
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            with open(GRAD_LOG_FILE, mode="a", newline="") as f:
+                writer = csv.writer(f)
+                writer.writerow([
+                    timestamp,
+                    report.nodeid,
+                    report.outcome.upper(),
+                    f"{report.duration:.4f}"
+                ])
