@@ -1,3 +1,4 @@
+Timestamp,Test_Name,Outcome,Duration_s
 2026-01-23 18:07:09,tests/grad/test_f_grad.py::test_f_stress_ill_conditioned[1.0-50],PASSED,0.0379
 2026-01-23 18:07:09,tests/grad/test_f_grad.py::test_f_stress_ill_conditioned[1.0-100],PASSED,0.1864
 2026-01-23 18:07:10,tests/grad/test_f_grad.py::test_f_stress_ill_conditioned[1.0-200],PASSED,1.0106

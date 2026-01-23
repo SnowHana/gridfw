@@ -106,7 +106,7 @@ def plot_experiment(df, dataset, experiment):
     plt.title(f'Objective: Greedy vs FW ({dataset} - {experiment})', fontsize=14)
     plt.legend()
     plt.grid(True, alpha=0.5)
-    plt.savefig(os.path.join(exp_dir, '1_Objective_Comparison.png'))
+    plt.savefig(os.path.join(exp_dir, '1_Objective_Comparison.pdf'))
     plt.close()
 
     # 2. Time Comparison (Greedy vs FW)
@@ -118,7 +118,7 @@ def plot_experiment(df, dataset, experiment):
     plt.title(f'Time: Greedy vs FW ({dataset} - {experiment})', fontsize=14)
     plt.legend()
     plt.grid(True, alpha=0.5)
-    plt.savefig(os.path.join(exp_dir, '2_Time_Comparison.png'))
+    plt.savefig(os.path.join(exp_dir, '2_Time_Comparison.pdf'))
     plt.close()
 
     # 3. Ratio
@@ -130,7 +130,7 @@ def plot_experiment(df, dataset, experiment):
     plt.title(f'Approximation Ratio ({dataset} - {experiment})', fontsize=14)
     plt.legend()
     plt.grid(True, alpha=0.5)
-    plt.savefig(os.path.join(exp_dir, '3_Ratio.png'))
+    plt.savefig(os.path.join(exp_dir, '3_Ratio.pdf'))
     plt.close()
 
     # 4. Speedup
@@ -142,7 +142,7 @@ def plot_experiment(df, dataset, experiment):
     plt.title(f'Speedup ({dataset} - {experiment})', fontsize=14)
     plt.legend()
     plt.grid(True, alpha=0.5)
-    plt.savefig(os.path.join(exp_dir, '4_Speedup.png'))
+    plt.savefig(os.path.join(exp_dir, '4_Speedup.pdf'))
     plt.close()
     
     print(f"Generated 4 plots for {dataset}/{experiment} in {exp_dir}")
