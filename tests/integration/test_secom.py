@@ -15,7 +15,7 @@ def secom_data():
     return A
 
 
-def run_comparison(test_name, A, k, steps, samples, logger, threshold=1.10, restarts=1):
+def run_comparison(test_name, A, k, steps, samples, logger, threshold=0.80, restarts=1):
     print(f"\n=== {test_name} (k={k}) ===")
 
     # 1. Greedy (Baseline)
@@ -34,15 +34,15 @@ def run_comparison(test_name, A, k, steps, samples, logger, threshold=1.10, rest
     fw_indices = np.where(s_fw > 0.5)[0]
     fw_obj = greedy.calculate_obj(list(fw_indices))
 
-    # Ratio: Lower is Better
-    ratio = fw_obj / g_obj if g_obj != 0 and not np.isinf(g_obj) else 1.0
+    # Ratio: Higher is Better (Maximization)
+    ratio = fw_obj / g_obj if g_obj != 0 and not np.isinf(g_obj) else 0.0
     speedup = g_time / fw_time if fw_time > 0 else 0.0
 
     print(f"Greedy: {g_time:.4f}s | Obj: {g_obj:.4f}")
     print(f"FW:     {fw_time:.4f}s | Obj: {fw_obj:.4f}")
     print(f"Stats:  Ratio={ratio:.2f} | Speedup={speedup:.2f}x")
 
-    status = "PASS" if ratio < threshold else "FAIL"
+    status = "PASS" if ratio > threshold else "FAIL"
     logger(
         test_name,
         k,
@@ -70,9 +70,9 @@ def test_secom_accuracy_k10(secom_data, benchmark_logger):
         steps=500,
         samples=50,
         logger=benchmark_logger,
-        threshold=1.05,
+        threshold=0.90,
     )
-    assert ratio < 1.05, f"Accuracy poor. Ratio: {ratio:.2f}"
+    assert ratio > 0.90, f"Accuracy poor. Ratio: {ratio:.2f}"
 
 
 def test_secom_benchmark_k50(secom_data, benchmark_logger):
@@ -84,9 +84,9 @@ def test_secom_benchmark_k50(secom_data, benchmark_logger):
         steps=800,
         samples=30,
         logger=benchmark_logger,
-        threshold=1.10,
+        threshold=0.85,
     )
-    assert ratio < 1.10, "Accuracy dropped."
+    assert ratio > 0.85, "Accuracy dropped."
     assert speedup > 1.0, "FW should be faster than Greedy"
 
 
@@ -100,9 +100,9 @@ def test_secom_stress_k100(secom_data, benchmark_logger):
         samples=30,
         restarts=3,
         logger=benchmark_logger,
-        threshold=1.15,
+        threshold=0.80,
     )
-    assert ratio < 1.15, f"Accuracy too low. Ratio: {ratio:.2f}"
+    assert ratio > 0.80, f"Accuracy too low. Ratio: {ratio:.2f}"
     assert speedup > 1.0, f"Speedup insufficient! Got {speedup:.2f}x"
 
 

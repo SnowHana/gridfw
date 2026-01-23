@@ -3,11 +3,10 @@ import itertools
 import time
 
 
-class GreedySolver:
+class GreedyAOptSolver:
     """
     Standard Greedy Algorithm for A-Optimality (Minimizing Trace of Inverse).
     Selects one feature at a time to MINIMIZE the objective.
-    Complexity: O(k * p) steps.
     """
 
     def __init__(self, A, k):
@@ -16,46 +15,92 @@ class GreedySolver:
         self.k = k
 
     def calculate_obj(self, indices):
-        """
-        Calculates the A-Optimality Objective: Trace( (A_S)^-1 )
-        We use pseudo-inverse (pinv) for stability.
-        """
         if len(indices) == 0:
             return np.inf
-
         idx = list(indices)
-        A_ss = self.A[np.ix_(idx, idx)]  # The selected submatrix
-
+        A_ss = self.A[np.ix_(idx, idx)]
         try:
-            # Objective: MINIMIZE the Trace of the Inverse
-            return np.trace(np.linalg.pinv(A_ss))
+            return np.trace(np.linalg.inv(A_ss))
         except np.linalg.LinAlgError:
-            return np.inf
+            try:
+                return np.trace(np.linalg.pinv(A_ss))
+            except np.linalg.LinAlgError:
+                return np.inf
 
     def solve(self):
+        start_time = time.time()
+        current_indices = []
+        for _ in range(self.k):
+            best_idx = -1
+            best_obj = np.inf
+            candidates = [i for i in range(self.p) if i not in current_indices]
+            for candidate in candidates:
+                temp_indices = current_indices + [candidate]
+                val = self.calculate_obj(temp_indices)
+                if val < best_obj:
+                    best_obj = val
+                    best_idx = candidate
+            if best_idx != -1:
+                current_indices.append(best_idx)
+        total_time = time.time() - start_time
+        final_obj = self.calculate_obj(current_indices)
+        return np.array(current_indices), final_obj, total_time
+
+
+class GreedySolver:
+    """
+    Greedy Algorithm for CSSP (Maximizing Trace of Projection).
+    Objective: Maximize Tr( X^T P_S X ) = Tr( A_SS^-1 (A^2)_SS )
+    """
+
+    def __init__(self, A, k):
+        self.A = A
+        self.p = A.shape[0]
+        self.k = k
+        # Precompute A^2 for efficiency
+        self.A2 = A @ A
+
+    def calculate_obj(self, indices):
         """
-        Runs the Greedy selection process.
-        Returns: (best_indices, best_obj, time_taken)
+        Calculates Tr( A_SS^-1 (A^2)_SS ).
         """
+        if len(indices) == 0:
+            return 0.0
+
+        idx = list(indices)
+        A_ss = self.A[np.ix_(idx, idx)]
+        A2_ss = self.A2[np.ix_(idx, idx)]
+
+        try:
+            # Objective: MAXIMIZE Tr( A_SS^-1 A2_SS )
+            # Try fast inverse first
+            # Add small regularization to avoid singularity with inv
+            inv_A_ss = np.linalg.inv(A_ss + 1e-6 * np.eye(len(idx)))
+            return np.trace(inv_A_ss @ A2_ss)
+        except np.linalg.LinAlgError:
+            try:
+                # Fallback to pseudo-inverse
+                inv_A_ss = np.linalg.pinv(A_ss)
+                return np.trace(inv_A_ss @ A2_ss)
+            except np.linalg.LinAlgError:
+                return 0.0
+
+    def solve(self):
         start_time = time.time()
         current_indices = []
 
         # Greedily add k elements
         for _ in range(self.k):
             best_idx = -1
-            best_obj = np.inf
+            best_obj = -np.inf
 
-            # Try adding every remaining candidate
             candidates = [i for i in range(self.p) if i not in current_indices]
 
             for candidate in candidates:
-                # Test combination
                 temp_indices = current_indices + [candidate]
-
-                # Calculate objective (We want the MINIMUM value)
                 val = self.calculate_obj(temp_indices)
 
-                if val < best_obj:
+                if val > best_obj:
                     best_obj = val
                     best_idx = candidate
 
@@ -83,9 +128,12 @@ class BruteForceSolver:
         idx = list(indices)
         A_sub = self.A[np.ix_(idx, idx)]
         try:
-            return np.trace(np.linalg.pinv(A_sub))
+            return np.trace(np.linalg.inv(A_sub))
         except np.linalg.LinAlgError:
-            return np.inf
+            try:
+                return np.trace(np.linalg.pinv(A_sub))
+            except np.linalg.LinAlgError:
+                return np.inf
 
     def solve(self):
         # Start with Infinity because we are MINIMIZING
@@ -103,3 +151,66 @@ class BruteForceSolver:
                 best_idx = list(indices)
 
         return np.array(best_idx), best_obj
+
+
+class GreedyPortfolioSolver:
+    """
+    Greedy Algorithm for Minimum-Variance Portfolio.
+    Equivalent to MAXIMIZING the sum of elements of the inverse covariance matrix.
+    Objective: Maximize 1^T (A_S)^-1 1
+    """
+
+    def __init__(self, A, k):
+        self.A = A
+        self.p = A.shape[0]
+        self.k = k
+
+    def calculate_obj(self, indices):
+        """
+        Calculates 1^T (A_S)^-1 1.
+        """
+        if len(indices) == 0:
+            return -np.inf  # We want to MAXIMIZE
+
+        idx = list(indices)
+        A_ss = self.A[np.ix_(idx, idx)]  # O(k^2) for k x k A_ss
+
+        try:
+            # Objective: MAXIMIZE sum of inverse elements
+            # Add small regularization to avoid singularity with inv
+            inv = np.linalg.inv(A_ss + 1e-6 * np.eye(len(idx)))  # O(k^3) for k x k A_ss
+            return np.sum(inv)  # O(k^2)
+        except np.linalg.LinAlgError:
+            try:
+                inv = np.linalg.pinv(A_ss)
+                return np.sum(inv)
+            except np.linalg.LinAlgError:
+                return -np.inf
+
+    def solve(self):
+        start_time = time.time()
+        current_indices = []
+
+        # Greedily add k elements
+        for _ in range(self.k):
+            best_idx = -1
+            best_obj = -np.inf
+
+            candidates = [i for i in range(self.p) if i not in current_indices]
+
+            for candidate in candidates:    # O(p)
+                temp_indices = current_indices + [candidate]
+                val = self.calculate_obj(temp_indices)    # O(k^3)  for k x k A_ss
+
+                if val > best_obj:
+                    best_obj = val
+                    best_idx = candidate
+
+            if best_idx != -1:
+                current_indices.append(best_idx)
+        # O(p * k^3)
+
+        total_time = time.time() - start_time
+        final_obj = self.calculate_obj(current_indices)    # O(k^3) for k x k A_ss
+        # Overall O(p * k^3)
+        return np.array(current_indices), final_obj, total_time
