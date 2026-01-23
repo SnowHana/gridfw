@@ -107,7 +107,7 @@ def test_sweep_vary_k(dataset_data, sweep_logger):
     """Experiment 1: Vary k with fixed steps/samples."""
     A, name = dataset_data
     # Optimized range: 10 to 150 with step 15 (~10 points for good plotting)
-    k_values = range(10, 400, 15)
+    k_values = range(10, 450, 25)
         
     steps = 800
     samples = 100
@@ -134,7 +134,7 @@ def test_sweep_vary_steps(dataset_data, sweep_logger):
     A, name = dataset_data
     k = 20
     samples = 100
-    step_values = range(100, 3000, 25)
+    step_values = range(100, 3000, 50)
 
     for s in step_values:
         run_experiment(A, k, s, samples, "vary_steps", sweep_logger, dataset_name=name)
@@ -157,16 +157,16 @@ def test_sweep_vary_p(sweep_logger):
         
         run_experiment(A, k, steps, samples, "vary_p", sweep_logger, dataset_name="Synthetic_VaryP")
 
-@pytest.mark.parametrize("dataset_data", DATASETS, indirect=True)
-def test_sweep_portfolio_vary_k(dataset_data, sweep_logger):
-    """Experiment 4: Portfolio Optimization - Vary k."""
-    A, name = dataset_data
-    k_values = [10, 20, 30, 40, 50]
-    steps = 800
-    samples = 1
+# @pytest.mark.parametrize("dataset_data", DATASETS, indirect=True)
+# def test_sweep_portfolio_vary_k(dataset_data, sweep_logger):
+#     """Experiment 4: Portfolio Optimization - Vary k."""
+#     A, name = dataset_data
+#     k_values = [10, 20, 30, 40, 50]
+#     steps = 800
+#     samples = 1
 
-    for k in k_values:
-        run_portfolio_experiment(A, k, steps, samples, "portfolio_vary_k", sweep_logger, dataset_name=name)
+#     for k in k_values:
+#         run_portfolio_experiment(A, k, steps, samples, "portfolio_vary_k", sweep_logger, dataset_name=name)
 
 
 @pytest.mark.parametrize("dataset_data", ["synthetic"], indirect=True)

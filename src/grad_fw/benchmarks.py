@@ -74,7 +74,8 @@ class GreedySolver:
         try:
             # Objective: MAXIMIZE Tr( A_SS^-1 A2_SS )
             # Try fast inverse first
-            inv_A_ss = np.linalg.inv(A_ss)
+            # Add small regularization to avoid singularity with inv
+            inv_A_ss = np.linalg.inv(A_ss + 1e-6 * np.eye(len(idx)))
             return np.trace(inv_A_ss @ A2_ss)
         except np.linalg.LinAlgError:
             try:
@@ -176,7 +177,8 @@ class GreedyPortfolioSolver:
 
         try:
             # Objective: MAXIMIZE sum of inverse elements
-            inv = np.linalg.inv(A_ss)  # O(k^3) for k x k A_ss
+            # Add small regularization to avoid singularity with inv
+            inv = np.linalg.inv(A_ss + 1e-6 * np.eye(len(idx)))  # O(k^3) for k x k A_ss
             return np.sum(inv)  # O(k^2)
         except np.linalg.LinAlgError:
             try:
