@@ -107,7 +107,8 @@ def test_sweep_vary_k(dataset_data, sweep_logger):
     samples = 100
 
     for k in k_values:
-        run_experiment(A, k, steps, samples, "vary_k", sweep_logger, dataset_name=name)
+        res = run_experiment(A, k, steps, samples, "vary_k", dataset_name=name)
+        sweep_logger(**res)
 
 
 @pytest.mark.parametrize("dataset_data", DATASETS, indirect=True)
@@ -119,7 +120,8 @@ def test_sweep_vary_nmc(dataset_data, sweep_logger):
     nmc_values = range(10, 500, 35)
 
     for nmc in nmc_values:
-        run_experiment(A, k, steps, nmc, "vary_nmc", sweep_logger, dataset_name=name)
+        res = run_experiment(A, k, steps, nmc, "vary_nmc", dataset_name=name)
+        sweep_logger(**res)
 
 
 @pytest.mark.parametrize("dataset_data", DATASETS, indirect=True)
@@ -131,7 +133,8 @@ def test_sweep_vary_steps(dataset_data, sweep_logger):
     step_values = range(100, 3000, 50)
 
     for s in step_values:
-        run_experiment(A, k, s, samples, "vary_steps", sweep_logger, dataset_name=name)
+        res = run_experiment(A, k, s, samples, "vary_steps", dataset_name=name)
+        sweep_logger(**res)
 
 
 def test_sweep_vary_p(sweep_logger):
@@ -148,9 +151,10 @@ def test_sweep_vary_p(sweep_logger):
         X = np.random.randn(1000, p)
         A = X.T @ X
 
-        run_experiment(
-            A, k, steps, samples, "vary_p", sweep_logger, dataset_name="Synthetic_VaryP"
+        res = run_experiment(
+            A, k, steps, samples, "vary_p", dataset_name="Synthetic_VaryP"
         )
+        sweep_logger(**res)
 
 
 # @pytest.mark.parametrize("dataset_data", DATASETS, indirect=True)
@@ -172,9 +176,10 @@ def test_sweep_large_synthetic(dataset_data, sweep_logger):
     k = 50
     steps = 1000
     samples = 50
-    run_experiment(
-        A, k, steps, samples, "large_synthetic", sweep_logger, dataset_name=name
+    res = run_experiment(
+        A, k, steps, samples, "large_synthetic", dataset_name=name
     )
+    sweep_logger(**res)
 
 
 @pytest.mark.parametrize("dataset_data", DATASETS, indirect=True)
@@ -189,9 +194,10 @@ def test_sweep_tuning(dataset_data, sweep_logger):
 
     for s in step_values:
         for nmc in sample_values:
-            run_experiment(
-                A, k, s, nmc, f"tuning_s{s}_n{nmc}", sweep_logger, dataset_name=name
+            res = run_experiment(
+                A, k, s, nmc, f"tuning_s{s}_n{nmc}", dataset_name=name
             )
+            sweep_logger(**res)
 
 
 @pytest.mark.parametrize("dataset_data", DATASETS, indirect=True)
@@ -204,13 +210,13 @@ def test_sweep_vary_alpha(dataset_data, sweep_logger):
     alpha_values = [0.001, 0.01, 0.05, 0.1]
 
     for alpha in alpha_values:
-        run_experiment(
+        res = run_experiment(
             A,
             k,
             steps,
             samples,
             f"vary_alpha_{alpha}",
-            sweep_logger,
             alpha=alpha,
             dataset_name=name,
         )
+        sweep_logger(**res)

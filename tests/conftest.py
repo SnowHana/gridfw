@@ -31,216 +31,141 @@ def dataset_data(request):
     return A, name.capitalize()
 
 
+SWEEP_LOG_FILE = "logs/param_sweep_log.csv"
+GRAD_LOG_FILE = "logs/grad_test_log.csv"
+CRITICAL_K_LOG_FILE = "logs/critical_k_results.csv"
+
+
+class CSVLogger:
+    def __init__(self, filename, headers):
+        self.filename = filename
+        self.headers = headers
+        os.makedirs(os.path.dirname(self.filename), exist_ok=True)
+        if not os.path.exists(self.filename):
+            with open(self.filename, mode="w", newline="") as f:
+                writer = csv.writer(f)
+                writer.writerow(self.headers)
+
+    def log(self, **data):
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        row = [timestamp]
+        for h in self.headers[1:]:
+            # Map result dict keys to header names
+            # Logic for mapping: lowercase header, replace spaces/hyphens with underscores
+            key = h.lower().replace(" ", "_").replace("-", "_")
+            if key == "speedup_x":
+                key = "speedupx"
+            elif key == "greedy_obj":
+                key = "g_obj"
+            elif key == "fw_obj":
+                key = "fw_obj"
+            elif key == "greedy_time_s":
+                key = "g_time"
+            elif key == "fw_time_s":
+                key = "fw_time"
+            elif key == "test_name":
+                key = "experiment_name"
+            elif key == "experiment":
+                key = "experiment_name"
+            elif key == "dataset":
+                key = "dataset_name"
+            elif key == "speedup_at_k":
+                key = "speedup"
+
+            val = data.get(key, "")
+            # Formatting
+            if isinstance(val, (float, np.float64, np.float32)):
+                row.append(f"{val:.4f}")
+            else:
+                row.append(str(val))
+
+        with open(self.filename, mode="a", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow(row)
+
+
 @pytest.fixture(scope="session")
 def benchmark_logger(request):
     user_note = request.config.getoption("--msg")
+    headers = [
+        "Timestamp",
+        "Dataset",
+        "Test_Name",
+        "k",
+        "Steps",
+        "Samples",
+        "Greedy_Obj",
+        "FW_Obj",
+        "Ratio",
+        "Greedy_Time_s",
+        "FW_Time_s",
+        "Speedup_x",
+        "Status",
+        "Note",
+    ]
+    logger = CSVLogger(LOG_FILE, headers)
 
-    # Ensure logs directory exists
-    os.makedirs("logs", exist_ok=True)
-
-    # 1. Create CSV if missing
-    if not os.path.exists(LOG_FILE):
-        with open(LOG_FILE, mode="w", newline="") as f:
-            writer = csv.writer(f)
-            writer.writerow(
-                [
-                    "Timestamp",
-                    "Dataset",
-                    "Test_Name",
-                    "k",
-                    "Steps",
-                    "Samples",
-                    "Greedy_Obj",
-                    "FW_Obj",
-                    "Ratio",
-                    "Greedy_Time_s",
-                    "FW_Time_s",
-                    "Speedup_x",
-                    "Status",
-                    "Note",
-                ]
+    def log_result(**kwargs):
+        # Calculate derived metrics if not present
+        if "ratio" not in kwargs and kwargs.get("g_obj") and kwargs.get("fw_obj"):
+            kwargs["ratio"] = kwargs["fw_obj"] / kwargs["g_obj"]
+        if "speedupx" not in kwargs and kwargs.get("g_time") and kwargs.get("fw_time"):
+            kwargs["speedupx"] = (
+                kwargs["g_time"] / kwargs["fw_time"] if kwargs["fw_time"] > 0 else 0
             )
 
-    def log_result(
-        test_name,
-        k,
-        steps,
-        samples,
-        g_obj=None,
-        fw_obj=None,
-        g_time=None,
-        fw_time=None,
-        status="PASS",
-        dataset_name="SECOM",
-    ):
+        kwargs.setdefault("status", "PASS")
+        kwargs.setdefault("note", user_note)
 
-        # Calculate Derived Metrics
-        ratio = (fw_obj / g_obj) if (fw_obj and g_obj) else 0.0
-        # Only calc speedup if we have valid times
-        speedup = (g_time / fw_time) if (g_time and fw_time and fw_time > 0) else 0.0
-
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-        # 2. Add to Global Session List (For the Terminal Table)
+        # Add to Global Session List for summary
         SESSION_RESULTS.append(
             {
-                "name": test_name,
-                "k": k,
-                "ratio": ratio,
-                "speedup": speedup,
-                "status": status,
+                "name": kwargs.get("experiment_name") or kwargs.get("test_name") or "Unknown",
+                "k": kwargs.get("k", 0),
+                "ratio": kwargs.get("ratio", 0),
+                "speedup": kwargs.get("speedupx", 0),
+                "status": kwargs.get("status", "PASS"),
             }
         )
-
-        # 3. Write to CSV (Persistent Log)
-        with open(LOG_FILE, mode="a", newline="") as f:
-            writer = csv.writer(f)
-            writer.writerow(
-                [
-                    timestamp,
-                    dataset_name,
-                    test_name,
-                    k,
-                    steps,
-                    samples,
-                    f"{g_obj:.4f}" if g_obj else "",
-                    f"{fw_obj:.4f}" if fw_obj else "",
-                    f"{ratio:.4f}" if ratio else "",
-                    f"{g_time:.4f}" if g_time else "",  # Will be empty if None
-                    f"{fw_time:.4f}" if fw_time else "",
-                    f"{speedup:.2f}" if speedup else "",
-                    status,
-                    user_note,
-                ]
-            )
+        logger.log(**kwargs)
 
     return log_result
 
 
-# --- NEW: The Hook that runs after all tests finish ---
-def pytest_sessionfinish(session, exitstatus):
-    """
-    Prints a pretty summary table to the console after tests complete.
-    """
-    if not SESSION_RESULTS:
-        return
-
-    # Print Header
-    print("\n" + "=" * 65)
-    print(f"{'BENCHMARK SUMMARY':^65}")
-    print("=" * 65)
-    print(
-        f"{'Test Name':<25} | {'k':<4} | {'Ratio':<8} | {'Speedup':<8} | {'Status':<6}"
-    )
-    print("-" * 65)
-
-    # Print Rows
-    for r in SESSION_RESULTS:
-        # Format metrics nicely
-        ratio_str = f"{r['ratio']:.1%}" if r["ratio"] > 0 else "N/A"
-        speed_str = f"{r['speedup']:.1f}x" if r["speedup"] > 0 else "N/A"
-
-        # Colorize Status (optional simple ASCII indicator)
-        status_str = r["status"]
-
-        print(
-            f"{r['name']:<25} | {r['k']:<4} | {ratio_str:<8} | {speed_str:<8} | {status_str:<6}"
-        )
-
-    print("=" * 65 + "\n")
-
-
-SWEEP_LOG_FILE = "logs/param_sweep_log.csv"
-GRAD_LOG_FILE = "logs/grad_test_log.csv"
-
-
 @pytest.fixture(scope="session")
 def sweep_logger():
-    # Ensure logs directory exists
-    os.makedirs("logs", exist_ok=True)
+    headers = [
+        "Timestamp",
+        "Dataset",
+        "p",
+        "Experiment",
+        "k",
+        "Steps",
+        "Samples",
+        "Greedy_Obj",
+        "FW_Obj",
+        "Ratio",
+        "Greedy_Time_s",
+        "FW_Time_s",
+        "Speedup_x",
+        "Status",
+    ]
+    logger = CSVLogger(SWEEP_LOG_FILE, headers)
 
-    # 1. Create CSV if missing
-    if not os.path.exists(SWEEP_LOG_FILE):
-        with open(SWEEP_LOG_FILE, mode="w", newline="") as f:
-            writer = csv.writer(f)
-            writer.writerow(
-                [
-                    "Timestamp",
-                    "Dataset",
-                    "p",
-                    "Experiment",
-                    "k",
-                    "Steps",
-                    "Samples",
-                    "Greedy_Obj",
-                    "FW_Obj",
-                    "Ratio",
-                    "Greedy_Time_s",
-                    "FW_Time_s",
-                    "Speedup_x",
-                    "Status",
-                ]
-            )
-
-    def log_sweep(
-        experiment_name,
-        k,
-        steps,
-        samples,
-        g_obj,
-        fw_obj,
-        g_time,
-        fw_time,
-        status="DONE",
-        dataset_name="Residential",
-        p=103,
-    ):
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        ratio = (fw_obj / g_obj) if (fw_obj and g_obj) else 0.0
-        speedup = (g_time / fw_time) if (g_time and fw_time and fw_time > 0) else 0.0
-
-        with open(SWEEP_LOG_FILE, mode="a", newline="") as f:
-            writer = csv.writer(f)
-            writer.writerow(
-                [
-                    timestamp,
-                    dataset_name,
-                    p,
-                    experiment_name,
-                    k,
-                    steps,
-                    samples,
-                    f"{g_obj:.4f}",
-                    f"{fw_obj:.4f}",
-                    f"{ratio:.4f}",
-                    f"{g_time:.4f}",
-                    f"{fw_time:.4f}",
-                    f"{speedup:.2f}",
-                    status,
-                ]
-            )
+    def log_sweep(**kwargs):
+        kwargs.setdefault("status", "DONE")
+        logger.log(**kwargs)
 
     return log_sweep
 
 
-CRITICAL_K_LOG_FILE = "logs/critical_k_results.csv"
-
-
 @pytest.fixture(scope="session")
 def critical_k_logger():
-    os.makedirs("logs", exist_ok=True)
+    headers = ["Timestamp", "Dataset", "p", "Critical_k", "Speedup_At_k"]
+    logger = CSVLogger(CRITICAL_K_LOG_FILE, headers)
 
-    # Initialize CSV if missing
-    if not os.path.exists(CRITICAL_K_LOG_FILE):
-        with open(CRITICAL_K_LOG_FILE, mode="w", newline="") as f:
-            writer = csv.writer(f)
-            writer.writerow(["Timestamp", "Dataset", "p", "Critical_k", "Speedup_At_k"])
-
-    def log_critical(dataset_name, p, critical_k, speedup):
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        with open(CRITICAL_K_LOG_FILE, mode="a", newline="") as f:
-            writer = csv.writer(f)
-            writer.writerow([timestamp, dataset_name, p, critical_k, f"{speedup:.4f}"])
+    def log_critical(**kwargs):
+        logger.log(**kwargs)
 
     return log_critical
 

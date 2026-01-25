@@ -5,6 +5,7 @@ from grad_fw.fw_homotomy import FWHomotopySolver
 from grad_fw.benchmarks import GreedySolver, run_experiment
 from grad_fw.data_loader import load_dataset, DATASETS
 
+# DATASETS = ["residential"]
 
 @pytest.mark.parametrize("dataset_data", DATASETS, indirect=True)
 @pytest.mark.parametrize("num_k", [10])
@@ -18,8 +19,12 @@ def test_dense_k(dataset_data, sweep_logger, num_k):
     samples = 100
 
     for k in k_list:
-        run_experiment(A, k, steps, samples, "dense_k", sweep_logger, dataset_name=name)
-    # p_list = range(A.shape[0] // 10, A.shape[0] + 1, A.shape[0] // 10)
+        res = run_experiment(
+            A, k, steps, samples, "dense_k", dataset_name=name
+        )
+        sweep_logger(
+            **res
+        )
 
 
 def find_critical_k(A_sub, name_p, logger, max_run=10):
@@ -39,15 +44,22 @@ def find_critical_k(A_sub, name_p, logger, max_run=10):
         if k > p:
             k = p
         # Run exp
-        res = run_experiment(
+        res_dict = run_experiment(
             A_sub,
             k,
             steps=800,
             samples=100,
             experiment_name=f"critical_k",
-            logger=logger,
             dataset_name=run_name,
-        )["speedupx"]
+        )
+        res = res_dict["speedupx"]
+        
+        # Log critical k specific data
+        log_data = res_dict.copy()
+        log_data["critical_k"] = k
+        log_data["speedup"] = res
+        log_data["p"] = p # Ensure p is logged
+        logger(**log_data)
 
         # Exact match: 95% ~ 105%
         if 0.95 <= res <= 1.05:
@@ -71,7 +83,7 @@ def find_critical_k(A_sub, name_p, logger, max_run=10):
 
 
 @pytest.mark.parametrize("dataset_data", DATASETS, indirect=True)
-def test_critical_k(dataset_data, sweep_logger, max_run=10):
+def test_critical_k(dataset_data, critical_k_logger, max_run=10):
     """Test 2: Binary search to find k value such that speedup is close to 1"""
     A_full, name = dataset_data
     p_full = A_full.shape[0]
@@ -83,7 +95,7 @@ def test_critical_k(dataset_data, sweep_logger, max_run=10):
 
         A_sub = A_full[np.ix_(indices, indices)]
         best_k = find_critical_k(
-            A_sub=A_sub, name_p=name, logger=sweep_logger, max_run=10
+            A_sub=A_sub, name_p=name, logger=critical_k_logger, max_run=10
         )
         results[p] = best_k
 

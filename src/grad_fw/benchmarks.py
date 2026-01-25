@@ -220,7 +220,7 @@ class GreedyPortfolioSolver:
 
 
 def run_experiment(
-    A, k, steps, samples, experiment_name, logger, alpha=0.01, dataset_name="Unknown"
+    A, k, steps, samples, experiment_name, alpha=0.01, dataset_name="Unknown"
 ):
     p = A.shape[0]
     print(
@@ -244,17 +244,17 @@ def run_experiment(
 
     ratio = fw_obj / g_obj if g_obj != 0 else 0.0
     print(f"Ratio: {ratio:.4f} | Time: {fw_time:.4f}s")
-
-    logger(
-        experiment_name,
-        k,
-        steps,
-        samples,
-        g_obj,
-        fw_obj,
-        g_time,
-        fw_time,
-        dataset_name=dataset_name,
-        p=p,
-    )
-    return {"ratio": ratio, "speedupx": g_time / fw_time}
+    return {
+        "experiment_name": experiment_name,
+        "k": k,
+        "steps": steps,
+        "samples": samples,
+        "g_obj": g_obj,
+        "fw_obj": fw_obj,
+        "g_time": g_time,
+        "fw_time": fw_time,
+        "dataset_name": dataset_name,
+        "p": p,
+        "ratio": ratio,
+        "speedupx": g_time / fw_time,
+    }
