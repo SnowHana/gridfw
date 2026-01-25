@@ -1,8 +1,11 @@
+import numpy as np
 import pytest
 import csv
 import os
 import sys
 from datetime import datetime
+
+from grad_fw.data_loader import load_dataset
 
 LOG_FILE = "logs/benchmark_log.csv"
 SESSION_RESULTS = []  # Store results here for the terminal summary
@@ -10,6 +13,22 @@ SESSION_RESULTS = []  # Store results here for the terminal summary
 
 def pytest_addoption(parser):
     parser.addoption("--msg", action="store", default="", help="Custom note for log")
+
+
+@pytest.fixture
+def dataset_data(request):
+    name = request.param
+    if name == "synthetic":
+        p = 500
+        np.random.seed(42)
+        X = np.random.randn(1000, p)
+        A = X.T @ X
+        return A, "Synthetic"
+
+    A, _ = load_dataset(name)
+    if A is None:
+        pytest.skip(f"Could not load {name} data")
+    return A, name.capitalize()
 
 
 @pytest.fixture(scope="session")
@@ -131,9 +150,9 @@ def pytest_sessionfinish(session, exitstatus):
     print("=" * 65 + "\n")
 
 
-
 SWEEP_LOG_FILE = "logs/param_sweep_log.csv"
 GRAD_LOG_FILE = "logs/grad_test_log.csv"
+
 
 @pytest.fixture(scope="session")
 def sweep_logger():
@@ -209,24 +228,26 @@ def pytest_runtest_logreport(report):
     """
     Automatically logs results of tests in 'tests/grad/' to a CSV.
     """
-    if report.when == 'call':
+    if report.when == "call":
         # Check if the test is in the 'grad' directory
-        if 'tests/grad/' in report.nodeid:
+        if "tests/grad/" in report.nodeid:
             os.makedirs("logs", exist_ok=True)
-            
+
             # Initialize CSV if missing
             if not os.path.exists(GRAD_LOG_FILE):
                 with open(GRAD_LOG_FILE, mode="w", newline="") as f:
                     writer = csv.writer(f)
                     writer.writerow(["Timestamp", "Test_Name", "Outcome", "Duration_s"])
-            
+
             # Log the result
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             with open(GRAD_LOG_FILE, mode="a", newline="") as f:
                 writer = csv.writer(f)
-                writer.writerow([
-                    timestamp,
-                    report.nodeid,
-                    report.outcome.upper(),
-                    f"{report.duration:.4f}"
-                ])
+                writer.writerow(
+                    [
+                        timestamp,
+                        report.nodeid,
+                        report.outcome.upper(),
+                        f"{report.duration:.4f}",
+                    ]
+                )

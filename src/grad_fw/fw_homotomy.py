@@ -8,13 +8,15 @@ class FWHomotopySolver:
     Corrected for MINIMIZATION of the A-Optimality objective.
     """
 
-    def __init__(self, A, k, alpha=0.01, n_steps=500, n_mc_samples=50, objective_type='cssp'):
+    def __init__(
+        self, A, k, alpha=0.01, n_steps=500, n_mc_samples=50, objective_type="cssp"
+    ):
         self.raw_p = A.shape[0]
         self.k = k
         self.alpha = alpha
         self.n = n_steps
         self.objective_type = objective_type
-        
+
         # Adaptive Sampling Strategy
         # For small k, we need more samples to reduce variance
         if self.k < 20 and n_mc_samples == 50:
@@ -22,7 +24,7 @@ class FWHomotopySolver:
         else:
             self.n_mc = n_mc_samples
 
-        # Tikhonov Regularization (Safety against singularity)
+        # Tikhonov Regularization : A = A + lambda * I > 0 (Pos. Def.)
         A_reg = A + 1e-6 * np.eye(self.raw_p)
 
         self.A = A_reg
@@ -44,7 +46,7 @@ class FWHomotopySolver:
         Select indices corresponding to the k SMALLEST gradients.
         """
         # argpartition moves the k smallest elements to the front
-        idx = np.argpartition(grad, self.k)[: self.k]   # O(p)
+        idx = np.argpartition(grad, self.k)[: self.k]  # O(p)
 
         s = np.zeros(self.p)
         s[idx] = 1.0
@@ -56,13 +58,13 @@ class FWHomotopySolver:
         max(grad[selected]) <= min(grad[unselected])
         """
         idx_selected = np.where(current_s > 0.5)[0]
-        idx_unselected = np.where(current_s <= 0.5)[0]   # O(p)
+        idx_unselected = np.where(current_s <= 0.5)[0]  # O(p)
 
         if len(idx_selected) == 0 or len(idx_unselected) == 0:
             return True
 
-        max_selected = np.max(grad[idx_selected])   # O(k)
-        min_unselected = np.min(grad[idx_unselected])   # O(p-k)
+        max_selected = np.max(grad[idx_selected])  # O(k)
+        min_unselected = np.min(grad[idx_unselected])  # O(p-k)
 
         return max_selected <= min_unselected + 1e-6
 
@@ -73,7 +75,7 @@ class FWHomotopySolver:
         best_val = -np.inf
         best_s = None
 
-        for run_i in range(n_restarts): # O(n_restarts)
+        for run_i in range(n_restarts):  # O(n_restarts)
             if verbose and n_restarts > 1:
                 print(f"--- Restart {run_i+1}/{n_restarts} ---")
 
@@ -93,21 +95,21 @@ class FWHomotopySolver:
             else:
                 r = 1.0
 
-            t = np.full(self.p, self.k / self.p)   # O(p)
+            t = np.full(self.p, self.k / self.p)  # O(p)
             curr_delta = delta_0
 
             # --- Sample Generation (SAA) ---
             # Create m Rademacher vectors at the start of the run (per restart)
             xi_samples = [
                 np.random.choice([-1, 1], size=self.p) for _ in range(self.n_mc)
-            ]   # O(n_mc * p)
+            ]  # O(n_mc * p)
 
             # --- 2. Optimization Loop ---
-            for l in range(1, self.n + 1): # O(n)
+            for l in range(1, self.n + 1):  # O(n)
                 curr_delta = delta_0 * (r ** (l - 1))
 
                 # Compute Gradient
-                if self.objective_type == 'portfolio':
+                if self.objective_type == "portfolio":
                     # Portfolio: Maximize 1^T A_S^-1 1
                     grad = BooleanRelaxation.grad_portfolio_analytical(
                         self.p, curr_delta, t, self.A
@@ -120,7 +122,7 @@ class FWHomotopySolver:
                     )
 
                 # LMO: Pick smallest gradients
-                s = self._get_lmo_solution(grad)   # O(p)
+                s = self._get_lmo_solution(grad)  # O(p)
 
                 # Update t
                 t = (1 - self.alpha) * t + self.alpha * s
@@ -130,14 +132,14 @@ class FWHomotopySolver:
                 dist_to_boundary = np.minimum(t, 1 - t)
                 if np.min(dist_to_boundary) <= 1e-4:
                     curr_delta = self.eta_1
-                    if self.objective_type == 'portfolio':
+                    if self.objective_type == "portfolio":
                         grad_at_s = BooleanRelaxation.grad_portfolio_analytical(
                             self.p, curr_delta, s, self.A
                         )
                     else:
                         grad_at_s = BooleanRelaxation.grad_z_analytical(
                             self.p, curr_delta, s, self.A, xi_samples
-                        )   # O(p^3 + p^2 * n_mc)
+                        )  # O(p^3 + p^2 * n_mc)
                     if self._check_kkt(s, grad_at_s):
                         if verbose:
                             print(f"  [Step {l}/{self.n}] Converged Early!")
@@ -155,8 +157,8 @@ class FWHomotopySolver:
             else:
                 try:
                     A_sub = self.A[np.ix_(idx, idx)]
-                    inv_A_sub = np.linalg.pinv(A_sub)   # O(p^3)
-                    if self.objective_type == 'portfolio':
+                    inv_A_sub = np.linalg.pinv(A_sub)  # O(p^3)
+                    if self.objective_type == "portfolio":
                         # Maximize 1^T A_S^-1 1
                         val = np.sum(inv_A_sub)
                     else:
