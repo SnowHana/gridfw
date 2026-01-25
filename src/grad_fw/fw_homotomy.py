@@ -46,6 +46,9 @@ class FWHomotopySolver:
         Select indices corresponding to the k SMALLEST gradients.
         """
         # argpartition moves the k smallest elements to the front
+        if self.k == self.p:
+            return np.ones(self.p)
+
         idx = np.argpartition(grad, self.k)[: self.k]  # O(p)
 
         s = np.zeros(self.p)

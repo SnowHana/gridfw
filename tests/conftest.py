@@ -223,6 +223,28 @@ def sweep_logger():
     return log_sweep
 
 
+CRITICAL_K_LOG_FILE = "logs/critical_k_results.csv"
+
+
+@pytest.fixture(scope="session")
+def critical_k_logger():
+    os.makedirs("logs", exist_ok=True)
+
+    # Initialize CSV if missing
+    if not os.path.exists(CRITICAL_K_LOG_FILE):
+        with open(CRITICAL_K_LOG_FILE, mode="w", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow(["Timestamp", "Dataset", "p", "Critical_k", "Speedup_At_k"])
+
+    def log_critical(dataset_name, p, critical_k, speedup):
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        with open(CRITICAL_K_LOG_FILE, mode="a", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow([timestamp, dataset_name, p, critical_k, f"{speedup:.4f}"])
+
+    return log_critical
+
+
 # --- NEW: Automatic Logging for Gradient Tests ---
 def pytest_runtest_logreport(report):
     """
