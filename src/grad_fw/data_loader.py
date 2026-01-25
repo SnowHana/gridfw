@@ -7,6 +7,7 @@ import requests
 DATASETS = {
     "residential": "https://archive.ics.uci.edu/ml/machine-learning-databases/00437/Residential-Building-Data-Set.xlsx",
     "secom": "https://archive.ics.uci.edu/ml/machine-learning-databases/secom/secom.data",
+    "arrhythmia": "https://archive.ics.uci.edu/ml/machine-learning-databases/arrhythmia/arrhythmia.data",
 }
 
 
@@ -38,6 +39,8 @@ def load_dataset(name_or_url):
             X_raw = _parse_residential(content)
         elif "secom" in url:
             X_raw = _parse_secom(content)
+        elif "arrhythmia" in url:
+            X_raw = _parse_arrhythmia(content)
         else:
             # Fallback: Try generic CSV loading
             print("    Unknown format. Attempting generic CSV load...")
@@ -81,7 +84,7 @@ def _parse_secom(content):
     """Parser for SECOM (Space-separated, No Header, Constant Columns)."""
     try:
         # Read CSV with space delimiter
-        df = pd.read_csv(content, sep="\s+", header=None)
+        df = pd.read_csv(content, sep=r"\s+", header=None)
         X_raw = df.to_numpy(dtype=np.float64)
 
         # Fill NaNs (SECOM has many)
@@ -99,6 +102,37 @@ def _parse_secom(content):
 
     except Exception as e:
         print(f"    Error parsing SECOM CSV: {e}")
+        return None
+
+
+def _parse_arrhythmia(content):
+    """Parser for Arrhythmia (Comma-separated, '?' for missing data)."""
+    try:
+        # FIX 1: Use sep="," (default) and handle '?' missing values
+        df = pd.read_csv(content, header=None, na_values="?")
+
+        # FIX 2: Arrhythmia often has a 'class' label in the last column
+        # Usually for CSSP we only want the features (columns 0-278)
+        X_df = df.iloc[:, :-1]
+
+        # Force numeric and fill NaNs with 0
+        X_raw = (
+            X_df.apply(pd.to_numeric, errors="coerce")
+            .fillna(0)
+            .to_numpy(dtype=np.float64)
+        )
+
+        # SECOM-style cleaning: Drop constant columns
+        std_devs = np.std(X_raw, axis=0)
+        keep_idx = np.where(std_devs > 1e-9)[0]
+
+        print(
+            f"    [Arrhythmia Cleaning] Dropped {X_raw.shape[1] - len(keep_idx)} constant columns."
+        )
+        return X_raw[:, keep_idx]
+
+    except Exception as e:
+        print(f"    Error parsing Arrhythmia CSV: {e}")
         return None
 
 
@@ -127,3 +161,6 @@ def _standardize_and_correlate(X_raw):
 
     print(f"    Computed Correlation Matrix A: {A.shape}")
     return A, X_norm
+
+
+# load_dataset("arrhythmia")

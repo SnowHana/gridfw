@@ -5,7 +5,6 @@ from grad_fw.fw_homotomy import FWHomotopySolver
 from grad_fw.benchmarks import GreedySolver, run_experiment
 from grad_fw.data_loader import load_dataset, DATASETS
 
-# DATASETS = ["residential"]
 
 @pytest.mark.parametrize("dataset_data", DATASETS, indirect=True)
 @pytest.mark.parametrize("num_k", [10])
@@ -19,12 +18,8 @@ def test_dense_k(dataset_data, sweep_logger, num_k):
     samples = 100
 
     for k in k_list:
-        res = run_experiment(
-            A, k, steps, samples, "dense_k", dataset_name=name
-        )
-        sweep_logger(
-            **res
-        )
+        res = run_experiment(A, k, steps, samples, "dense_k", dataset_name=name)
+        sweep_logger(**res)
 
 
 def find_critical_k(A_sub, name_p, logger, max_run=10):
@@ -53,12 +48,12 @@ def find_critical_k(A_sub, name_p, logger, max_run=10):
             dataset_name=run_name,
         )
         res = res_dict["speedupx"]
-        
+
         # Log critical k specific data
         log_data = res_dict.copy()
         log_data["critical_k"] = k
         log_data["speedup"] = res
-        log_data["p"] = p # Ensure p is logged
+        log_data["p"] = p  # Ensure p is logged
         logger(**log_data)
 
         # Exact match: 95% ~ 105%
@@ -82,8 +77,9 @@ def find_critical_k(A_sub, name_p, logger, max_run=10):
             return best_k
 
 
+@pytest.mark.parametrize("run_id", range(5))  # Run test 5 times and log
 @pytest.mark.parametrize("dataset_data", DATASETS, indirect=True)
-def test_critical_k(dataset_data, critical_k_logger, max_run=10):
+def test_critical_k(dataset_data, critical_k_logger, run_id):
     """Test 2: Binary search to find k value such that speedup is close to 1"""
     A_full, name = dataset_data
     p_full = A_full.shape[0]
