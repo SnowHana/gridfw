@@ -3,13 +3,13 @@ import time
 import numpy as np
 from grad_fw.fw_homotomy import FWHomotopySolver
 from grad_fw.benchmarks import GreedySolver
-from grad_fw.data_loader import load_dataset
+from grad_fw.data_loader import load_dataset_online
 
 
 @pytest.fixture(scope="module")
 def secom_data():
     print("\n[Setup] Loading SECOM Data...")
-    A, _ = load_dataset("secom")
+    A, _ = load_dataset_online("secom")
     if A is None:
         pytest.skip("Could not load SECOM data")
     return A
