@@ -5,6 +5,7 @@ import requests
 from ucimlrepo import fetch_ucirepo
 
 # Registry of supported datasets
+
 DATASETS_URL = {
     "residential": "https://archive.ics.uci.edu/ml/machine-learning-databases/00437/Residential-Building-Data-Set.xlsx",
     "secom": "https://archive.ics.uci.edu/ml/machine-learning-databases/secom/secom.data",
@@ -12,6 +13,8 @@ DATASETS_URL = {
 }
 
 DATASETS_ID = {"myocardial": 579}
+
+DATASETS = DATASETS_URL | DATASETS_ID
 
 
 def load_dataset_online(name_or_url):

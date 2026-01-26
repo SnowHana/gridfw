@@ -70,7 +70,9 @@ class CSVLogger:
             elif key == "dataset":
                 key = "dataset_name"
             elif key == "speedup_at_k":
-                key = "speedup"
+                key = "speedupx"
+            elif key == "final_critical_k":
+                key = "final_critical_k"
 
             val = data.get(key, "")
             # Formatting
@@ -120,7 +122,9 @@ def benchmark_logger(request):
         # Add to Global Session List for summary
         SESSION_RESULTS.append(
             {
-                "name": kwargs.get("experiment_name") or kwargs.get("test_name") or "Unknown",
+                "name": kwargs.get("experiment_name")
+                or kwargs.get("test_name")
+                or "Unknown",
                 "k": kwargs.get("k", 0),
                 "ratio": kwargs.get("ratio", 0),
                 "speedup": kwargs.get("speedupx", 0),
@@ -161,7 +165,7 @@ def sweep_logger():
 
 @pytest.fixture(scope="session")
 def critical_k_logger():
-    headers = ["Timestamp", "Dataset", "p", "Critical_k", "Speedup_At_k"]
+    headers = ["Timestamp", "Dataset", "p", "Critical_k", "Speedup_At_k", "Ratio"]
     logger = CSVLogger(CRITICAL_K_LOG_FILE, headers)
 
     def log_critical(**kwargs):
@@ -175,7 +179,7 @@ CRITICAL_K_FINAL_LOG_FILE = "logs/critical_k_final.csv"
 
 @pytest.fixture(scope="session")
 def critical_k_final_logger():
-    headers = ["Timestamp", "Dataset", "p", "Final_Critical_k", "Speedup_At_k"]
+    headers = ["Timestamp", "Dataset", "p", "Final_Critical_k", "Speedup_At_k", "Ratio"]
     logger = CSVLogger(CRITICAL_K_FINAL_LOG_FILE, headers)
 
     def log_critical_final(**kwargs):

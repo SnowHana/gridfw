@@ -1,9 +1,5 @@
 import pytest
-import time
 import numpy as np
-from grad_fw.fw_homotomy import FWHomotopySolver
-from grad_fw.benchmarks import GreedySolver, GreedyPortfolioSolver
-from grad_fw.data_loader import load_dataset_online
 from grad_fw.benchmarks import run_experiment
 
 # --- CONFIGURATION ---
@@ -11,87 +7,6 @@ from grad_fw.benchmarks import run_experiment
 DATASETS = ["secom"]
 
 # --- HELPERS ---
-
-
-# def run_experiment(
-#     A, k, steps, samples, experiment_name, logger, alpha=0.01, dataset_name="Unknown"
-# ):
-#     p = A.shape[0]
-#     print(
-#         f"\n--- {experiment_name} ({dataset_name}, p={p}, k={k}, steps={steps}, n_mc={samples}, alpha={alpha}) ---"
-#     )
-
-#     # 1. Greedy (Baseline)
-#     greedy = GreedySolver(A, k)
-#     t0 = time.time()
-#     _, g_obj, _ = greedy.solve()
-#     g_time = time.time() - t0
-
-#     # 2. FW-Homotopy
-#     solver = FWHomotopySolver(A, k, alpha=alpha, n_steps=steps, n_mc_samples=samples)
-#     t0 = time.time()
-#     s_fw = solver.solve(n_restarts=1, verbose=False)
-#     fw_time = time.time() - t0
-
-#     idx = np.where(s_fw > 0.5)[0]
-#     fw_obj = greedy.calculate_obj(list(idx))
-
-#     ratio = fw_obj / g_obj if g_obj != 0 else 0.0
-#     print(f"Ratio: {ratio:.4f} | Time: {fw_time:.4f}s")
-
-#     logger(
-#         experiment_name,
-#         k,
-#         steps,
-#         samples,
-#         g_obj,
-#         fw_obj,
-#         g_time,
-#         fw_time,
-#         dataset_name=dataset_name,
-#         p=p,
-#     )
-#     return ratio
-
-
-# def run_portfolio_experiment(A, k, steps, samples, experiment_name, logger, dataset_name="Unknown"):
-#     p = A.shape[0]
-#     print(f"\n--- {experiment_name} (Portfolio) ({dataset_name}, p={p}, k={k}, steps={steps}) ---")
-
-#     # 1. Greedy Portfolio (Maximization)
-#     greedy = GreedyPortfolioSolver(A, k)
-#     t0 = time.time()
-#     _, g_obj, _ = greedy.solve()
-#     g_time = time.time() - t0
-
-#     # 2. FW-Homotopy Portfolio
-#     solver = FWHomotopySolver(A, k, alpha=0.01, n_steps=steps, n_mc_samples=samples, objective_type='portfolio')
-#     t0 = time.time()
-#     s_fw = solver.solve(n_restarts=1, verbose=False)
-#     fw_time = time.time() - t0
-
-#     idx = np.where(s_fw > 0.5)[0]
-#     fw_obj = greedy.calculate_obj(list(idx))
-
-#     ratio = fw_obj / g_obj if g_obj != 0 else 0.0
-#     print(f"Ratio: {ratio:.4f} | Time: {fw_time:.4f}s")
-
-#     logger(
-#         experiment_name,
-#         k,
-#         steps,
-#         samples,
-#         g_obj,
-#         fw_obj,
-#         g_time,
-#         fw_time,
-#         dataset_name=dataset_name,
-#         p=p
-#     )
-#     return ratio
-
-# --- FIXTURES ---
-
 
 # --- TESTS ---
 
@@ -176,9 +91,7 @@ def test_sweep_large_synthetic(dataset_data, sweep_logger):
     k = 50
     steps = 1000
     samples = 50
-    res = run_experiment(
-        A, k, steps, samples, "large_synthetic", dataset_name=name
-    )
+    res = run_experiment(A, k, steps, samples, "large_synthetic", dataset_name=name)
     sweep_logger(**res)
 
 
@@ -194,9 +107,7 @@ def test_sweep_tuning(dataset_data, sweep_logger):
 
     for s in step_values:
         for nmc in sample_values:
-            res = run_experiment(
-                A, k, s, nmc, f"tuning_s{s}_n{nmc}", dataset_name=name
-            )
+            res = run_experiment(A, k, s, nmc, f"tuning_s{s}_n{nmc}", dataset_name=name)
             sweep_logger(**res)
 
 
