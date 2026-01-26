@@ -3,7 +3,7 @@ import time
 import numpy as np
 from grad_fw.fw_homotomy import FWHomotopySolver
 from grad_fw.benchmarks import GreedySolver
-from grad_fw.data_loader import load_dataset
+from grad_fw.data_loader import load_dataset_online
 
 
 def test_medium_accuracy_stability(benchmark_logger):
@@ -17,7 +17,7 @@ def test_medium_accuracy_stability(benchmark_logger):
     print("\n\n=== BENCHMARK: Residential Building (Medium Setup) ===")
 
     # Load via string name
-    A, _ = load_dataset("residential")
+    A, _ = load_dataset_online("residential")
     if A is None:
         pytest.skip("Could not load dataset.")
 
@@ -95,7 +95,7 @@ def test_medium_accuracy_stability(benchmark_logger):
 
 def test_scalability_k40(benchmark_logger):
     print("\n\n=== BENCHMARK: Residential Building (Scalability k=40) ===")
-    A, _ = load_dataset("residential")
+    A, _ = load_dataset_online("residential")
     if A is None:
         pytest.skip("No Data")
 

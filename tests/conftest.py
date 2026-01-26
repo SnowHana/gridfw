@@ -5,7 +5,7 @@ import os
 import sys
 from datetime import datetime
 
-from grad_fw.data_loader import load_dataset
+from grad_fw.data_loader import load_dataset_online
 
 LOG_FILE = "logs/benchmark_log.csv"
 SESSION_RESULTS = []  # Store results here for the terminal summary
@@ -25,7 +25,7 @@ def dataset_data(request):
         A = X.T @ X
         return A, "Synthetic"
 
-    A, _ = load_dataset(name)
+    A, _ = load_dataset_online(name)
     if A is None:
         pytest.skip(f"Could not load {name} data")
     return A, name.capitalize()
@@ -168,6 +168,20 @@ def critical_k_logger():
         logger.log(**kwargs)
 
     return log_critical
+
+
+CRITICAL_K_FINAL_LOG_FILE = "logs/critical_k_final.csv"
+
+
+@pytest.fixture(scope="session")
+def critical_k_final_logger():
+    headers = ["Timestamp", "Dataset", "p", "Final_Critical_k", "Speedup_At_k"]
+    logger = CSVLogger(CRITICAL_K_FINAL_LOG_FILE, headers)
+
+    def log_critical_final(**kwargs):
+        logger.log(**kwargs)
+
+    return log_critical_final
 
 
 # --- NEW: Automatic Logging for Gradient Tests ---

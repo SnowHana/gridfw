@@ -3,7 +3,9 @@ import time
 import numpy as np
 from grad_fw.fw_homotomy import FWHomotopySolver
 from grad_fw.benchmarks import GreedySolver, run_experiment
-from grad_fw.data_loader import load_dataset, DATASETS
+from grad_fw.data_loader import load_dataset_online, DATASETS
+
+DATASETS = ["residential", "arrhythmia"]
 
 
 @pytest.mark.parametrize("dataset_data", DATASETS, indirect=True)
@@ -58,7 +60,7 @@ def find_critical_k(A_sub, name_p, logger, max_run=10):
 
         # Exact match: 95% ~ 105%
         if 0.95 <= res <= 1.05:
-            return k
+            return {"k": k, "speedx": res}
 
         # Track best k
         if abs(res - 1.0) <= closest_diff:
@@ -74,12 +76,15 @@ def find_critical_k(A_sub, name_p, logger, max_run=10):
 
         # Exhausted feasible cases
         if low > high:
-            return best_k
+            return {"k": best_k, "speedx": res}
 
 
+# @pytest.mark.parametrize("partition", 30)
 @pytest.mark.parametrize("run_id", range(5))  # Run test 5 times and log
 @pytest.mark.parametrize("dataset_data", DATASETS, indirect=True)
-def test_critical_k(dataset_data, critical_k_logger, run_id):
+def test_critical_k(
+    dataset_data, critical_k_logger, critical_k_final_logger, run_id, partition=10
+):
     """Test 2: Binary search to find k value such that speedup is close to 1"""
     A_full, name = dataset_data
     p_full = A_full.shape[0]
@@ -90,10 +95,15 @@ def test_critical_k(dataset_data, critical_k_logger, run_id):
         indices = np.random.choice(p_full, p, replace=False)
 
         A_sub = A_full[np.ix_(indices, indices)]
-        best_k = find_critical_k(
+        res = find_critical_k(
             A_sub=A_sub, name_p=name, logger=critical_k_logger, max_run=10
         )
-        results[p] = best_k
+        results[p] = res["k"]
+
+        # Log final critical k
+        critical_k_final_logger(
+            dataset_name=name, p=p, final_critical_k=res["k"], speedup=res["speedx"]
+        )
 
     print(results)
     return

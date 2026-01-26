@@ -11,7 +11,7 @@ DATASETS = {
 }
 
 
-def load_dataset(name_or_url):
+def load_dataset_online(name_or_url):
     """
     General entry point to load any supported CSSP dataset.
 
