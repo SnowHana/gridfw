@@ -1,3 +1,5 @@
+.gitignore
 logs/
 *.pbs
 Bench*
+w

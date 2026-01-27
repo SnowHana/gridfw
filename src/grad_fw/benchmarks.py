@@ -120,12 +120,15 @@ class BruteForceSolver:
 
 
 def run_experiment(
-    A, k, steps, samples, experiment_name, alpha=0.01, dataset_name="Unknown"
+    A,
+    k,
+    experiment_name,
+    alpha=0.01,
+    dataset_name="Unknown",
+    steps=None,
+    samples=None,
 ):
     p = A.shape[0]
-    print(
-        f"\n--- {experiment_name} ({dataset_name}, p={p}, k={k}, steps={steps}, n_mc={samples}, alpha={alpha}) ---"
-    )
 
     # 1. Greedy (Baseline)
     greedy = GreedySolver(A, k)
@@ -135,20 +138,31 @@ def run_experiment(
 
     # 2. FW-Homotopy
     solver = FWHomotopySolver(A, k, alpha=alpha, n_steps=steps, n_mc_samples=samples)
+
     t0 = time.time()
-    s_fw = solver.solve(n_restarts=1, verbose=False)
+    s_fw = solver.solve(verbose=False)
     fw_time = time.time() - t0
 
     idx = np.where(s_fw > 0.5)[0]
     fw_obj = greedy.calculate_obj(list(idx))
 
     ratio = fw_obj / g_obj if g_obj != 0 else 0.0
-    print(f"Ratio: {ratio:.4f} | Time: {fw_time:.4f}s")
+
+    # ---  Retrieve the ACTUAL values used by the solver ---
+    actual_steps = solver.n_steps
+    actual_samples = solver.n_mc_samples
+
+    print(
+        f"--- {experiment_name} ({dataset_name}, k={k}) ---\n"
+        f"Used Steps: {actual_steps} | Used NMC: {actual_samples} | Alpha: {alpha}\n"
+        f"Ratio: {ratio:.4f} | Time: {fw_time:.4f}s"
+    )
+
     return {
         "experiment_name": experiment_name,
         "k": k,
-        "steps": steps,
-        "samples": samples,
+        "steps": actual_steps,
+        "samples": actual_samples,
         "g_obj": g_obj,
         "fw_obj": fw_obj,
         "g_time": g_time,
@@ -156,7 +170,7 @@ def run_experiment(
         "dataset_name": dataset_name,
         "p": p,
         "ratio": ratio,
-        "speedupx": g_time / fw_time,
+        "speedupx": g_time / fw_time if fw_time > 0 else 0,
     }
 
 

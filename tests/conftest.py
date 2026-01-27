@@ -20,10 +20,7 @@ def pytest_addoption(parser):
 @pytest.fixture
 def dataset_data(request):
     name = request.param
-    # if name == "synthetic":
-    #     A, _ = LOADER.load("synthetic", p=1000, correlation_strength=0.95)
-    #     return A, "Synthetic"
-
+    # Standard loader usage
     A, _ = LOADER.load(name)
     if A is None:
         pytest.skip(f"Could not load {name} data")
@@ -52,6 +49,8 @@ class CSVLogger:
             # Map result dict keys to header names
             # Logic for mapping: lowercase header, replace spaces/hyphens with underscores
             key = h.lower().replace(" ", "_").replace("-", "_")
+
+            # --- MAPPINGS ---
             if key == "speedup_x":
                 key = "speedupx"
             elif key == "greedy_obj":
@@ -72,6 +71,8 @@ class CSVLogger:
                 key = "speedupx"
             elif key == "final_critical_k":
                 key = "final_critical_k"
+            # Explicit mapping for alpha is usually not needed if key matches 'alpha',
+            # but we leave it standard logic.
 
             val = data.get(key, "")
             # Formatting
@@ -95,6 +96,7 @@ def benchmark_logger(request):
         "k",
         "Steps",
         "Samples",
+        "Alpha",  # <--- ADDED
         "Greedy_Obj",
         "FW_Obj",
         "Ratio",
@@ -117,6 +119,7 @@ def benchmark_logger(request):
 
         kwargs.setdefault("status", "PASS")
         kwargs.setdefault("note", user_note)
+        kwargs.setdefault("alpha", "")  # Default to empty if not provided
 
         # Add to Global Session List for summary
         SESSION_RESULTS.append(
@@ -145,6 +148,7 @@ def sweep_logger():
         "k",
         "Steps",
         "Samples",
+        "Alpha",  # <--- ADDED
         "Greedy_Obj",
         "FW_Obj",
         "Ratio",
@@ -157,6 +161,7 @@ def sweep_logger():
 
     def log_sweep(**kwargs):
         kwargs.setdefault("status", "DONE")
+        kwargs.setdefault("alpha", "")  # Default if missing
         logger.log(**kwargs)
 
     return log_sweep

@@ -10,20 +10,25 @@ class FWHomotopySolver:
     """
 
     def __init__(
-        self, A, k, alpha=0.01, n_steps=500, n_mc_samples=50, objective_type="cssp"
+        self, A, k, alpha=0.01, n_steps=None, n_mc_samples=None, objective_type="cssp"
     ):
         self.raw_p = A.shape[0]
         self.k = k
         self.alpha = alpha
-        self.n = n_steps
+        self.n_steps = n_steps
         self.objective_type = objective_type
 
         # Adaptive Sampling Strategy
-        # For small k, we need more samples to reduce variance
-        if self.k < 20 and n_mc_samples == 50:
-            self.n_mc = 300
+        # Allow at least 20 steps per features
+        if n_steps is None:
+            self.n_steps = max(100, int(20 * self.k))
         else:
-            self.n_mc = n_mc_samples
+            self.n_steps = n_steps
+
+        if n_mc_samples is None:
+            self.n_mc_samples = 50
+        else:
+            self.n_mc_samples = n_mc_samples
 
         # Tikhonov Regularization : A = A + lambda * I > 0 (Pos. Def.)
         A_reg = A + 1e-6 * np.eye(self.raw_p)
@@ -56,7 +61,7 @@ class FWHomotopySolver:
         s[idx] = 1.0
         return s
 
-    def solve(self, n_restarts=1, verbose=True):
+    def solve(self, verbose=True):
         """
         Solve CSSP using FW-Homotopy
 
@@ -78,8 +83,8 @@ class FWHomotopySolver:
         delta_0 = max(theoretical_delta, 1e-6, min_scale)
 
         # Decay Rate : delta_1 ... delta_n = eta_1
-        if self.n > 1:
-            r = (self.eta_1 / delta_0) ** (1 / (self.n - 1))
+        if self.n_steps > 1:
+            r = (self.eta_1 / delta_0) ** (1 / (self.n_steps - 1))
         else:
             r = 1.0
 
@@ -90,11 +95,11 @@ class FWHomotopySolver:
         # Create m Rademacher vectors at the start of the run (per restart)
 
         # --- 2. Main Optimization Loop ---
-        for l in range(1, self.n + 1):  # O(n)
+        for l in range(1, self.n_steps + 1):  # O(n)
             curr_delta = delta_0 * (r ** (l - 1))
 
             xi_samples = [
-                np.random.choice([-1, 1], size=self.p) for _ in range(self.n_mc)
+                np.random.choice([-1, 1], size=self.p) for _ in range(self.n_mc_samples)
             ]  # O(n_mc * p)
 
             # CSSP: Maximize Tr(X^T P_S X)
