@@ -100,7 +100,7 @@ def _parse_secom(content):
         # Fill NaNs (SECOM has many)
         X_raw = np.nan_to_num(X_raw)
 
-        return _clean_constant_rows(X_raw, "secom")
+        return _clean_constant_cols(X_raw, "secom")
 
     except Exception as e:
         print(f"    Error parsing SECOM CSV: {e}")
@@ -124,7 +124,7 @@ def _parse_arrhythmia(content):
             .to_numpy(dtype=np.float64)
         )
 
-        return _clean_constant_rows(X_raw, "arrhythmia")
+        return _clean_constant_cols(X_raw, "arrhythmia")
 
     except Exception as e:
         print(f"    Error parsing Arrhythmia CSV: {e}")
@@ -139,7 +139,7 @@ def _parse_myocardial(content):
             .to_numpy(dtype=np.float64)
         )
 
-        return _clean_constant_rows(X_raw, "myocardial")
+        return _clean_constant_cols(X_raw, "myocardial")
 
     except Exception as e:
         print(f"    Error parsing Arrhythmia CSV: {e}")
@@ -149,10 +149,8 @@ def _parse_myocardial(content):
 # --- SHARED MATH ---
 
 
-def _clean_constant_rows(X_raw, name):
-    """Drop constant rows (Repeated rows)"""
-    # SECOM SPECIFIC: Drop constant columns (Variance = 0)
-    # If we don't do this, the matrix is singular and solver crashes.
+def _clean_constant_cols(X_raw, name):
+    """Drop constant cols cuz constant cols will crash our normalisation"""
     std_devs = np.std(X_raw, axis=0)
     keep_idx = np.where(std_devs > 1e-9)[0]
 
@@ -186,4 +184,16 @@ def _standardize_and_correlate(X_raw):
     return A, X_norm
 
 
-print(load_dataset_online("residential"))
+def get_correlation_density(A):
+    """
+    Docstring for get_correlation_density
+    Return avg. correlation of off-diagonal to see how correlated it is
+    :param A: Description
+    """
+    p = A.shape[0]
+    # Extract only off-diagonal elements
+    off_diag = A[~np.eye(p, dtype=bool)]
+    return np.mean(np.abs(off_diag))
+
+
+print(load_dataset_online("secom"))

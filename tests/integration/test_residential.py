@@ -1,7 +1,7 @@
 import pytest
 import time
 import numpy as np
-from grad_fw.fw_homotomy import FWHomotopySolver
+from logs.old_logs.fw_homotomy import FWHomotopySolver
 from grad_fw.benchmarks import GreedySolver
 from grad_fw.data_loader import load_dataset_online
 
@@ -38,7 +38,7 @@ def test_medium_accuracy_stability(benchmark_logger):
     # 2. FW-Homotopy (Stability Run)
     n_runs = 10
     print(f"\n[2] Running FW-Homotopy ({n_runs} runs for stability)...")
-    
+
     # Using parameters that balance speed and accuracy for medium setup
     solver = FWHomotopySolver(A, k, alpha=0.01, n_steps=steps, n_mc_samples=samples)
 
@@ -60,7 +60,7 @@ def test_medium_accuracy_stability(benchmark_logger):
     fw_mean = np.mean(fw_objs)
     fw_std = np.std(fw_objs)
     cv = fw_std / fw_mean if fw_mean != 0 else 0.0
-    
+
     ratio = fw_mean / g_obj
 
     print(f"\n--- Results ---")
@@ -80,7 +80,7 @@ def test_medium_accuracy_stability(benchmark_logger):
         g_obj=g_obj,
         fw_obj=fw_mean,
         g_time=g_time,
-        fw_time=total_time/n_runs,
+        fw_time=total_time / n_runs,
         status=f"{status} (CV={cv:.1f}%)",
         dataset_name="Residential",
     )
@@ -88,7 +88,7 @@ def test_medium_accuracy_stability(benchmark_logger):
     # Assertions based on user goals (Maximization)
     # Ratio > 0.75 means FW is at least 75% of Greedy
     assert ratio > 0.75, f"Accuracy too low: Ratio {ratio:.2f} < 0.75"
-    
+
     # CV should be around 3% (assert < 5% for safety)
     assert cv < 0.05, f"Instability detected: CV {cv:.2%} > 5%"
 
@@ -121,7 +121,7 @@ def test_scalability_k40(benchmark_logger):
 
     indices = np.where(s_fw > 0.5)[0]
     fw_obj = greedy.calculate_obj(list(indices))
-    
+
     ratio = fw_obj / g_obj
     print(f"    FW: Obj={fw_obj:.4f} ({fw_time:.4f}s)")
     print(f"    Ratio: {ratio:.4f}")

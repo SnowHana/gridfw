@@ -1,7 +1,7 @@
 import pytest
 import time
 import numpy as np
-from grad_fw.fw_homotomy import FWHomotopySolver
+from logs.old_logs.fw_homotomy import FWHomotopySolver
 from grad_fw.benchmarks import GreedySolver
 from grad_fw.data_loader import load_dataset_online
 

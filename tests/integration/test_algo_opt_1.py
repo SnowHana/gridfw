@@ -4,7 +4,7 @@ import math
 import itertools
 from grad_verif.core import ProblemGenerator
 from grad_fw.benchmarks import BruteForceSolver
-from grad_fw.fw_homotomy import FWHomotopySolver
+from logs.old_logs.fw_homotomy import FWHomotopySolver
 
 
 # --- Test Cases ---

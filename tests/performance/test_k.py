@@ -10,6 +10,25 @@ from grad_fw.data_loader import DATASETS
 # DATASETS_URL = []
 # DATASETS_URL = ["residential", "arrhythmia"]
 
+DATASETS = ["residential"]
+
+
+@pytest.mark.parametrize("dataset_data", DATASETS, indirect=True)
+def test_high_corr_k(dataset_data, sweep_logger):
+    """Test 1: Vary k with fixed steps, samples, p"""
+    A, name = dataset_data
+    p = A.shape[0]
+    gap = max(1, int(0.01 * p))
+    # Test 0.01 * p, 0.05 * p, 0.1 * p
+    k_values = [gap, gap * 5, gap * 10]
+
+    steps = 800
+    samples = 100
+
+    for k in k_values:
+        res = run_experiment(A, k, steps, samples, "dense_k", dataset_name=name)
+        sweep_logger(**res)
+
 
 @pytest.mark.parametrize("dataset_data", DATASETS, indirect=True)
 @pytest.mark.parametrize("num_k", [10])

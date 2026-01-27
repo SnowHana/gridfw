@@ -2,51 +2,7 @@ import numpy as np
 import itertools
 import time
 
-from grad_fw.fw_homotomy import FWHomotopySolver
-
-
-class GreedyAOptSolver:
-    """
-    Standard Greedy Algorithm for A-Optimality (Minimizing Trace of Inverse).
-    Selects one feature at a time to MINIMIZE the objective.
-    """
-
-    def __init__(self, A, k):
-        self.A = A
-        self.p = A.shape[0]
-        self.k = k
-
-    def calculate_obj(self, indices):
-        if len(indices) == 0:
-            return np.inf
-        idx = list(indices)
-        A_ss = self.A[np.ix_(idx, idx)]
-        try:
-            return np.trace(np.linalg.inv(A_ss))
-        except np.linalg.LinAlgError:
-            try:
-                return np.trace(np.linalg.pinv(A_ss))
-            except np.linalg.LinAlgError:
-                return np.inf
-
-    def solve(self):
-        start_time = time.time()
-        current_indices = []
-        for _ in range(self.k):
-            best_idx = -1
-            best_obj = np.inf
-            candidates = [i for i in range(self.p) if i not in current_indices]
-            for candidate in candidates:
-                temp_indices = current_indices + [candidate]
-                val = self.calculate_obj(temp_indices)
-                if val < best_obj:
-                    best_obj = val
-                    best_idx = candidate
-            if best_idx != -1:
-                current_indices.append(best_idx)
-        total_time = time.time() - start_time
-        final_obj = self.calculate_obj(current_indices)
-        return np.array(current_indices), final_obj, total_time
+from logs.old_logs.fw_homotomy import FWHomotopySolver
 
 
 class GreedySolver:
@@ -64,8 +20,9 @@ class GreedySolver:
 
     def calculate_obj(self, indices):
         """
+        Calcualtes objective value for selected indices (=s)
         Calculates Tr( A_SS^-1 (A^2)_SS ).
-        Because Tr(XYZ) = Tr(YZX)
+        Because Tr(XYZ) = Tr(YZX), refer to doc for further proof.
         """
         if len(indices) == 0:
             return 0.0
@@ -77,18 +34,24 @@ class GreedySolver:
         try:
             # Objective: MAXIMIZE Tr( A_SS^-1 A2_SS )
             # Try fast inverse first
-            # Add small regularization to avoid singularity with inv
-            inv_A_ss = np.linalg.inv(A_ss + 1e-6 * np.eye(len(idx)))
+            # Tikhonov Regularization
+            inv_A_ss = np.linalg.inv(A_ss + 1e-9 * np.eye(len(idx)))
             return np.trace(inv_A_ss @ A2_ss)
         except np.linalg.LinAlgError:
             try:
                 # Fallback to pseudo-inverse
+                # A bit slower, but better when A_ss is messy (singular)
                 inv_A_ss = np.linalg.pinv(A_ss)
                 return np.trace(inv_A_ss @ A2_ss)
             except np.linalg.LinAlgError:
                 return 0.0
 
     def solve(self):
+        """
+        Docstring for solve
+        Choose 1 best index (column) that improves our objective value the most
+        :param self: Description
+        """
         start_time = time.time()
         current_indices = []
 
@@ -154,69 +117,6 @@ class BruteForceSolver:
                 best_idx = list(indices)
 
         return np.array(best_idx), best_obj
-
-
-class GreedyPortfolioSolver:
-    """
-    Greedy Algorithm for Minimum-Variance Portfolio.
-    Equivalent to MAXIMIZING the sum of elements of the inverse covariance matrix.
-    Objective: Maximize 1^T (A_S)^-1 1
-    """
-
-    def __init__(self, A, k):
-        self.A = A
-        self.p = A.shape[0]
-        self.k = k
-
-    def calculate_obj(self, indices):
-        """
-        Calculates 1^T (A_S)^-1 1.
-        """
-        if len(indices) == 0:
-            return -np.inf  # We want to MAXIMIZE
-
-        idx = list(indices)
-        A_ss = self.A[np.ix_(idx, idx)]  # O(k^2) for k x k A_ss
-
-        try:
-            # Objective: MAXIMIZE sum of inverse elements
-            # Add small regularization to avoid singularity with inv
-            inv = np.linalg.inv(A_ss + 1e-6 * np.eye(len(idx)))  # O(k^3) for k x k A_ss
-            return np.sum(inv)  # O(k^2)
-        except np.linalg.LinAlgError:
-            try:
-                inv = np.linalg.pinv(A_ss)
-                return np.sum(inv)
-            except np.linalg.LinAlgError:
-                return -np.inf
-
-    def solve(self):
-        start_time = time.time()
-        current_indices = []
-
-        # Greedily add k elements
-        for _ in range(self.k):
-            best_idx = -1
-            best_obj = -np.inf
-
-            candidates = [i for i in range(self.p) if i not in current_indices]
-
-            for candidate in candidates:  # O(p)
-                temp_indices = current_indices + [candidate]
-                val = self.calculate_obj(temp_indices)  # O(k^3)  for k x k A_ss
-
-                if val > best_obj:
-                    best_obj = val
-                    best_idx = candidate
-
-            if best_idx != -1:
-                current_indices.append(best_idx)
-        # O(p * k^3)
-
-        total_time = time.time() - start_time
-        final_obj = self.calculate_obj(current_indices)  # O(k^3) for k x k A_ss
-        # Overall O(p * k^3)
-        return np.array(current_indices), final_obj, total_time
 
 
 def run_experiment(
