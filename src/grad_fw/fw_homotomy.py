@@ -55,21 +55,21 @@ class FWHomotopySolver:
         s[idx] = 1.0
         return s
 
-    def _check_kkt(self, current_s, grad):
-        """
-        KKT Optimality Check for MINIMIZATION.
-        max(grad[selected]) <= min(grad[unselected])
-        """
-        idx_selected = np.where(current_s > 0.5)[0]
-        idx_unselected = np.where(current_s <= 0.5)[0]  # O(p)
+    # def _check_kkt(self, current_s, grad):
+    #     """
+    #     KKT Optimality Check for MINIMIZATION.
+    #     max(grad[selected]) <= min(grad[unselected])
+    #     """
+    #     idx_selected = np.where(current_s > 0.5)[0]
+    #     idx_unselected = np.where(current_s <= 0.5)[0]  # O(p)
 
-        if len(idx_selected) == 0 or len(idx_unselected) == 0:
-            return True
+    #     if len(idx_selected) == 0 or len(idx_unselected) == 0:
+    #         return True
 
-        max_selected = np.max(grad[idx_selected])  # O(k)
-        min_unselected = np.min(grad[idx_unselected])  # O(p-k)
+    #     max_selected = np.max(grad[idx_selected])  # O(k)
+    #     min_unselected = np.min(grad[idx_unselected])  # O(p-k)
 
-        return max_selected <= min_unselected + 1e-6
+    #     return max_selected <= min_unselected + 1e-6
 
     def solve(self, n_restarts=1, verbose=True):
         """

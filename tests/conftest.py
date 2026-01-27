@@ -188,6 +188,29 @@ def critical_k_final_logger():
     return log_critical_final
 
 
+CRITICLAL_K_NMC_LOG_FILE = "logs/critical_k_nmc.csv"
+
+
+@pytest.fixture(scope="session")
+def critical_k_nmc_logger():
+    headers = [
+        "Timestamp",
+        "Dataset",
+        "p",
+        "Final_Critical_k",
+        "Samples",
+        "Steps",
+        "Speedup_At_k",
+        "Ratio",
+    ]
+    logger = CSVLogger(CRITICLAL_K_NMC_LOG_FILE, headers)
+
+    def log_critical_k_nmc(**kwargs):
+        logger.log(**kwargs)
+
+    return log_critical_k_nmc
+
+
 # --- NEW: Automatic Logging for Gradient Tests ---
 def pytest_runtest_logreport(report):
     """
