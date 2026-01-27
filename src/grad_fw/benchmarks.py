@@ -163,6 +163,7 @@ def run_experiment(
         "k": k,
         "steps": actual_steps,
         "samples": actual_samples,
+        "alpha": alpha,
         "g_obj": g_obj,
         "fw_obj": fw_obj,
         "g_time": g_time,
