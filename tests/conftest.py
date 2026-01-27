@@ -5,10 +5,12 @@ import os
 import sys
 from datetime import datetime
 
-from grad_fw.data_loader import load_dataset_online
+from grad_fw.data_loader import DatasetLoader
 
 LOG_FILE = "logs/benchmark_log.csv"
 SESSION_RESULTS = []  # Store results here for the terminal summary
+
+LOADER = DatasetLoader()
 
 
 def pytest_addoption(parser):
@@ -19,13 +21,10 @@ def pytest_addoption(parser):
 def dataset_data(request):
     name = request.param
     if name == "synthetic":
-        p = 500
-        np.random.seed(42)
-        X = np.random.randn(1000, p)
-        A = X.T @ X
+        A, _ = LOADER.load("synthetic", p=1000, correlation_strength=0.95)
         return A, "Synthetic"
 
-    A, _ = load_dataset_online(name)
+    A, _ = LOADER.load(name)
     if A is None:
         pytest.skip(f"Could not load {name} data")
     return A, name.capitalize()

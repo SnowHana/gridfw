@@ -5,12 +5,12 @@ Test effect of k (Subset size) in terms of time spent, and accuracy
 import pytest
 import numpy as np
 from grad_fw.benchmarks import run_experiment, find_critical_k
-from grad_fw.data_loader import DATASETS
+from grad_fw.data_loader import DatasetLoader
 
 # DATASETS_URL = []
 # DATASETS_URL = ["residential", "arrhythmia"]
 
-DATASETS = ["residential"]
+DATASETS = ["synthetic"]
 
 
 @pytest.mark.parametrize("dataset_data", DATASETS, indirect=True)
@@ -20,7 +20,7 @@ def test_high_corr_k(dataset_data, sweep_logger):
     p = A.shape[0]
     gap = max(1, int(0.01 * p))
     # Test 0.01 * p, 0.05 * p, 0.1 * p
-    k_values = [gap, gap * 5, gap * 10]
+    k_values = [gap, gap * 5, gap * 10, gap * 15, gap * 20, gap * 30, gap * 40]
 
     steps = 800
     samples = 100
