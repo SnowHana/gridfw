@@ -10,7 +10,7 @@ from grad_fw.data_loader import DatasetLoader
 # DATASETS_URL = []
 # DATASETS_URL = ["residential", "arrhythmia"]
 
-DATASETS = ["madelon"]
+DATASETS = ["synthetic_toeplitz"]
 
 
 @pytest.mark.parametrize("dataset_data", DATASETS, indirect=True)

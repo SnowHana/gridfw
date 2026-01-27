@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import io
 import requests
+import scipy
 from ucimlrepo import fetch_ucirepo
 from sklearn.datasets import fetch_openml  # Added for MNIST/Madelon
 
@@ -42,8 +43,11 @@ class DatasetLoader:
 
         try:
             # --- PATH 1: Synthetic Generator ---
-            if key == "synthetic":
+            if key == "synthetic_high_corr":
                 return self.generate_high_dim_correlated_data(**kwargs)
+
+            if key == "synthetic_toeplitz":
+                return self.generate_toeplitz_trap(**kwargs)
 
             # --- PATH 2: Scikit-Learn OpenML (MNIST, Madelon) ---
             if key in ["mnist", "madelon"]:
@@ -138,6 +142,30 @@ class DatasetLoader:
         A = (X_norm.T @ X_norm) / N
 
         print(f"    Computed Correlation Matrix A: {A.shape}")
+        return A, X_norm
+
+    def generate_toeplitz_trap(self, N=1000, p=500, rho=0.9):
+        """
+        Generates a Toeplitz covariance matrix.
+        Known to be difficult for Greedy because information is 'decaying'
+        rather than clustered.
+        """
+        print(f"    Generating Toeplitz Trap: p={p}, rho={rho}")
+
+        # 1. Create Covariance Matrix (Power decay)
+        # Row i, Col j = rho^|i-j|
+        c = [rho**i for i in range(p)]
+        r = [rho**i for i in range(p)]
+        Sigma = scipy.linalg.toeplitz(c, r)
+
+        # 2. Generate Data from this Covariance
+        mean = np.zeros(p)
+        X = np.random.multivariate_normal(mean, Sigma, size=N)
+
+        # Standardize
+        X_norm = (X - X.mean(axis=0)) / X.std(axis=0)
+        A = (X_norm.T @ X_norm) / N
+
         return A, X_norm
 
     # --- PARSERS (Unchanged) ---

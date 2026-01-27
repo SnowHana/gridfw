@@ -20,9 +20,9 @@ def pytest_addoption(parser):
 @pytest.fixture
 def dataset_data(request):
     name = request.param
-    if name == "synthetic":
-        A, _ = LOADER.load("synthetic", p=1000, correlation_strength=0.95)
-        return A, "Synthetic"
+    # if name == "synthetic":
+    #     A, _ = LOADER.load("synthetic", p=1000, correlation_strength=0.95)
+    #     return A, "Synthetic"
 
     A, _ = LOADER.load(name)
     if A is None:
