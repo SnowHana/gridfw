@@ -7,8 +7,18 @@ from datetime import datetime
 
 from grad_fw.data_loader import DatasetLoader
 
-LOG_FILE = "logs/benchmark_log.csv"
+CONFTEST_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.dirname(CONFTEST_DIR)
+LOG_DIR = os.path.join(PROJECT_ROOT, "logs")
+
 SESSION_RESULTS = []  # Store results here for the terminal summary
+
+
+SWEEP_LOG_FILE = os.path.join(LOG_DIR, "param_sweep_log.csv")
+GRAD_LOG_FILE = "logs/grad_test_log.csv"
+CRITICAL_K_LOG_FILE = "logs/critical_k_results.csv"
+
+os.makedirs(LOG_DIR, exist_ok=True)
 
 LOADER = DatasetLoader()
 
@@ -25,11 +35,6 @@ def dataset_data(request):
     if A is None:
         pytest.skip(f"Could not load {name} data")
     return A, name.capitalize()
-
-
-SWEEP_LOG_FILE = "logs/param_sweep_log.csv"
-GRAD_LOG_FILE = "logs/grad_test_log.csv"
-CRITICAL_K_LOG_FILE = "logs/critical_k_results.csv"
 
 
 class CSVLogger:

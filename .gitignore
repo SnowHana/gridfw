@@ -1,4 +1,9 @@
 .gitignore
 logs/
+*.csv
+*.log
 *.pbs
 Bench*
+
+__pycahce__/
+*.pyc
