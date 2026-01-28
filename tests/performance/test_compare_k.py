@@ -5,7 +5,13 @@ Test effect of k (Subset size) in terms of time spent, and accuracy
 import pytest
 import numpy as np
 from grad_fw.benchmarks import run_experiment, find_critical_k
-from grad_fw.data_loader import ALL_DATASETS, DATASETS_SYNTHETIC
+from grad_fw.data_loader import (
+    ALL_DATASETS,
+    DATASETS_SYNTHETIC,
+    DATASETS_URL,
+    DATASETS_ID,
+    DATASETS_OPENML,
+)
 
 # DATASETS_URL = []
 # DATASETS_URL = ["residential", "arrhythmia"]
@@ -21,6 +27,7 @@ from grad_fw.data_loader import ALL_DATASETS, DATASETS_SYNTHETIC
 #     "myocardial",
 # ]
 # DATASETS = ["residential"]
+# DATASETS = {**DATASETS_URL, **DATASETS_ID, **DATASETS_OPENML}
 DATASETS = DATASETS_SYNTHETIC
 
 
@@ -37,7 +44,7 @@ def test_compare_k_fixed_p(dataset_data, compare_k_logger, alpha, m):
         res = run_experiment(
             A=A,
             k=k,
-            experiment_name=f"compare_k{k}_a{alpha}_m{m}",
+            experiment_name=f"compare_k{k}_a{alpha}_m{m}_block_1",
             dataset_name=name,
             samples=m,
             alpha=alpha,
