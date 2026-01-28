@@ -2,10 +2,12 @@ import numpy as np
 import pandas as pd
 import io
 import requests
+import scipy
 from ucimlrepo import fetch_ucirepo
+from sklearn.datasets import fetch_openml  # Added for MNIST/Madelon
 
 # Registry of supported datasets
-
+# --- 1. Registry of Data Sources ---
 DATASETS_URL = {
     "residential": "https://archive.ics.uci.edu/ml/machine-learning-databases/00437/Residential-Building-Data-Set.xlsx",
     "secom": "https://archive.ics.uci.edu/ml/machine-learning-databases/secom/secom.data",
@@ -14,176 +16,262 @@ DATASETS_URL = {
 
 DATASETS_ID = {"myocardial": 579}
 
-DATASETS = DATASETS_URL | DATASETS_ID
+DATASETS_OPENML = {"mnist": "mnist_784", "madelon": "madelon"}
+
+DATASETS_SYNTHETIC = {
+    "synthetic_high_corr": "generator",
+    "synthetic_toeplitz": "generator",
+}
+
+# --- 2. Master Registry (Merged Dictionary) ---
+# This allows you to do: for name in DatasetLoader.ALL_DATASETS: loader.load(name)
+ALL_DATASETS = {
+    **DATASETS_URL,
+    **DATASETS_ID,
+    **DATASETS_OPENML,
+    **DATASETS_SYNTHETIC,
+}
 
 
-def load_dataset_online(name_or_url):
+class DatasetLoader:
     """
-    General entry point to load any supported CSSP dataset.
-
-    Args:
-        name_or_url (str): Either a key ('residential', 'secom') or a direct URL.
-
-    Returns:
-        A (np.ndarray): Correlation matrix (p x p).
-        X_norm (np.ndarray): Normalized feature matrix (N x p).
+    Unified loader for CSSP benchmarks.
+    Handles downloading, parsing, cleaning, and standardizing datasets.
+    Supported: 'residential', 'secom', 'arrhythmia', 'myocardial', 'mnist', 'madelon', 'synthetic'.
     """
-    # 1. Resolve URL
-    url = DATASETS_URL.get(name_or_url.lower(), name_or_url)
 
-    print(f"  > Loading dataset: {name_or_url}")
-    print(f"    Source: {url}")
+    def __init__(self):
+        pass
 
-    try:
-        if name_or_url in DATASETS_URL:
-            # 2. Download Data (Robust SSL handling)
+    def load(self, name_or_url: str, **kwargs):
+        """
+        Main entry point to load a dataset.
+
+        Args:
+            name_or_url: Name ('mnist', 'synthetic') or URL.
+            **kwargs: Arguments passed to synthetic generator (N, p, correlation_strength).
+
+        Returns:
+            A (np.ndarray): Correlation matrix (p x p).
+            X_norm (np.ndarray): Normalized feature matrix (N x p).
+        """
+        key = name_or_url.lower()
+        print(f"  > Loading dataset: {key}")
+
+        try:
+            # --- PATH 1: Synthetic Generator ---
+            if key in DATASETS_SYNTHETIC:
+                if key == "synthetic_high_corr":
+                    return self.generate_high_dim_correlated_data(**kwargs)
+                if key == "synthetic_toeplitz":
+                    return self.generate_toeplitz_trap(**kwargs)
+
+            # --- PATH 2: Scikit-Learn OpenML ---
+            if key in DATASETS_OPENML:
+                return self._load_openml(key)
+
+            # --- PATH 3: UCI ML Repo ID ---
+            if key in DATASETS_ID:
+                print(f"    Source: UCI Repo ID {DATASETS_ID[key]}")
+                # Myocardial specific handling
+                X_data = fetch_ucirepo(id=DATASETS_ID[key]).data.features
+                X_raw = self._parse_myocardial(X_data)
+                return self._standardize_and_correlate(X_raw)
+
+            # --- PATH 4: Direct URL / Legacy ---
+            # Check if key is in URL dict, otherwise treat input as raw URL
+            url = DATASETS_URL.get(key, name_or_url)
+
+            # If it's not a known key and not a valid URL structure (basic check), fail fast
+            if key not in DATASETS_URL and not key.startswith("http"):
+                print(f"    Error: '{key}' not found in registry and is not a URL.")
+                return None, None
+
+            # --- PATH 4: Direct URL / Legacy ---
+            url = DATASETS_URL.get(key, name_or_url)
+            print(f"    Source: {url}")
+
             response = requests.get(url, verify=False)
             response.raise_for_status()
             content = io.BytesIO(response.content)
 
-            # 3. Dispatch to specific loader based on known URLs
+            X_raw = None
             if "Residential-Building" in url:
-                X_raw = _parse_residential(content)
+                X_raw = self._parse_residential(content)
             elif "secom" in url:
-                X_raw = _parse_secom(content)
+                X_raw = self._parse_secom(content)
             elif "arrhythmia" in url:
-                X_raw = _parse_arrhythmia(content)
+                X_raw = self._parse_arrhythmia(content)
             else:
-                # Fallback: Try generic CSV loading
+                # Generic Fallback
                 print("    Unknown format. Attempting generic CSV load...")
                 df = pd.read_csv(content)
                 X_raw = df.select_dtypes(include=[np.number]).to_numpy()
 
             if X_raw is None:
                 return None, None
-        elif name_or_url in DATASETS_ID:
-            if "myocardial" in name_or_url:
-                X = fetch_ucirepo(id=DATASETS_ID["myocardial"]).data.features
-                X_raw = _parse_myocardial(X)
-        # 4. Standardize and Compute Correlation (Shared Logic)
-        return _standardize_and_correlate(X_raw)
 
-    except Exception as e:
-        print(f"    CRITICAL ERROR loading data: {e}")
-        return None, None
+            return self._standardize_and_correlate(X_raw)
 
+        except Exception as e:
+            print(f"    CRITICAL ERROR loading data: {e}")
+            return None, None
 
-# --- SPECIFIC PARSERS ---
+    # --- OPENML HANDLER ---
+    def _load_openml(self, key):
+        """Handles MNIST and Madelon via sklearn."""
+        if key == "mnist":
+            print("    Fetching MNIST from OpenML (this may take a moment)...")
+            # Load MNIST (70k samples). We subsample to 2000 for solver speed.
+            X, _ = fetch_openml("mnist_784", version=1, return_X_y=True, as_frame=False)
+            X = X[:2000].astype(np.float64)  # Subsample first 2000
 
+        elif key == "madelon":
+            print("    Fetching Madelon from OpenML...")
+            X, _ = fetch_openml("madelon", version=1, return_X_y=True, as_frame=False)
+            X = X.astype(np.float64)
 
-def _parse_residential(content):
-    """Parser for UCI Residential Building (Excel, Headers, targets at end)."""
-    try:
-        # Read Excel (Header is on row 1, index 1)
-        df = pd.read_excel(content, header=1)
+        # Clean constant columns (Vital for MNIST border pixels)
+        X = self._clean_constant_cols(X, key)
+        return self._standardize_and_correlate(X)
 
-        # Columns 4 to 107 are the features (V-1 to V-104)
-        # Drop first 4 (ID/Dates) and last 2 (Targets)
-        X_df = df.iloc[:, 4:107]
+    # --- SYNTHETIC GENERATOR ---
+    def generate_high_dim_correlated_data(
+        self, N=2000, p=500, n_blocks=20, correlation_strength=0.9
+    ):
+        """Generates synthetic 'Trap' data for Greedy vs FW testing."""
+        # Calculate block size ensuring integer division
+        block_size = p // n_blocks
+        actual_p = block_size * n_blocks
 
-        # Force numeric
-        X_raw = X_df.apply(pd.to_numeric, errors="coerce").to_numpy(dtype=np.float64)
-        return np.nan_to_num(X_raw)
-
-    except Exception as e:
-        print(f"    Error parsing Residential Excel: {e}")
-        return None
-
-
-def _parse_secom(content):
-    """Parser for SECOM (Space-separated, No Header, Constant Columns)."""
-    try:
-        # Read CSV with space delimiter
-        df = pd.read_csv(content, sep=r"\s+", header=None)
-        X_raw = df.to_numpy(dtype=np.float64)
-
-        # Fill NaNs (SECOM has many)
-        X_raw = np.nan_to_num(X_raw)
-
-        return _clean_constant_rows(X_raw, "secom")
-
-    except Exception as e:
-        print(f"    Error parsing SECOM CSV: {e}")
-        return None
-
-
-def _parse_arrhythmia(content):
-    """Parser for Arrhythmia (Comma-separated, '?' for missing data)."""
-    try:
-        # FIX 1: Use sep="," (default) and handle '?' missing values
-        df = pd.read_csv(content, header=None, na_values="?")
-
-        # FIX 2: Arrhythmia often has a 'class' label in the last column
-        # Usually for CSSP we only want the features (columns 0-278)
-        X_df = df.iloc[:, :-1]
-
-        # Force numeric and fill NaNs with 0
-        X_raw = (
-            X_df.apply(pd.to_numeric, errors="coerce")
-            .fillna(0)
-            .to_numpy(dtype=np.float64)
+        X = np.zeros((N, actual_p))
+        print(
+            f"    Generating Synthetic Data: N={N}, p={actual_p}, Blocks={n_blocks}, Corr={correlation_strength}"
         )
 
-        return _clean_constant_rows(X_raw, "arrhythmia")
+        for i in range(n_blocks):
+            # Latent Factor (Hidden Truth)
+            latent_factor = np.random.randn(N)
 
-    except Exception as e:
-        print(f"    Error parsing Arrhythmia CSV: {e}")
-        return None
+            # Generate noisy versions of latent factor
+            start_col = i * block_size
+            end_col = (i + 1) * block_size
 
+            noise = np.random.randn(N, block_size)
+            # Mix signal and noise
+            X[:, start_col:end_col] = (
+                correlation_strength * latent_factor[:, None]
+                + (1 - correlation_strength) * noise
+            )
 
-def _parse_myocardial(content):
-    try:
-        X_raw = (
-            content.apply(pd.to_numeric, errors="coerce")
-            .fillna(0)
-            .to_numpy(dtype=np.float64)
-        )
+        # Standardize directly (skip _standardize_and_correlate to avoid double print/logic)
+        X_norm = (X - X.mean(axis=0)) / X.std(axis=0)
+        A = (X_norm.T @ X_norm) / N
 
-        return _clean_constant_rows(X_raw, "myocardial")
+        print(f"    Computed Correlation Matrix A: {A.shape}")
+        return A, X_norm
 
-    except Exception as e:
-        print(f"    Error parsing Arrhythmia CSV: {e}")
-        return None
+    def generate_toeplitz_trap(self, N=1000, p=500, rho=0.9):
+        """
+        Generates a Toeplitz covariance matrix.
+        Known to be difficult for Greedy because information is 'decaying'
+        rather than clustered.
+        """
+        print(f"    Generating Toeplitz Trap: p={p}, rho={rho}")
 
+        # 1. Create Covariance Matrix (Power decay)
+        # Row i, Col j = rho^|i-j|
+        c = [rho**i for i in range(p)]
+        r = [rho**i for i in range(p)]
+        Sigma = scipy.linalg.toeplitz(c, r)
 
-# --- SHARED MATH ---
+        # 2. Generate Data from this Covariance
+        mean = np.zeros(p)
+        X = np.random.multivariate_normal(mean, Sigma, size=N)
 
+        # Standardize
+        X_norm = (X - X.mean(axis=0)) / X.std(axis=0)
+        A = (X_norm.T @ X_norm) / N
 
-def _clean_constant_rows(X_raw, name):
-    """Drop constant rows (Repeated rows)"""
-    # SECOM SPECIFIC: Drop constant columns (Variance = 0)
-    # If we don't do this, the matrix is singular and solver crashes.
-    std_devs = np.std(X_raw, axis=0)
-    keep_idx = np.where(std_devs > 1e-9)[0]
+        return A, X_norm
 
-    print(
-        f"    [{name} Cleaning] Dropped {X_raw.shape[1] - len(keep_idx)} constant columns."
-    )
-    return X_raw[:, keep_idx]
+    # --- PARSERS (Unchanged) ---
+    def _parse_residential(self, content):
+        try:
+            df = pd.read_excel(content, header=1)
+            X_df = df.iloc[:, 4:107]
+            X_raw = X_df.apply(pd.to_numeric, errors="coerce").to_numpy(
+                dtype=np.float64
+            )
+            return np.nan_to_num(X_raw)
+        except Exception as e:
+            print(f"    Error parsing Residential: {e}")
+            return None
 
+    def _parse_secom(self, content):
+        try:
+            df = pd.read_csv(content, sep=r"\s+", header=None)
+            X_raw = np.nan_to_num(df.to_numpy(dtype=np.float64))
+            return self._clean_constant_cols(X_raw, "secom")
+        except Exception as e:
+            print(f"    Error parsing SECOM: {e}")
+            return None
 
-def _standardize_and_correlate(X_raw):
-    """
-    Normalizes X (Z-score) and calculates A = (X^T X) / N.
-    Used for ALL datasets to ensure consistent math.
-    """
-    N, p = X_raw.shape
-    print(f"    Raw Data Shape: {N} rows x {p} features")
+    def _parse_arrhythmia(self, content):
+        try:
+            df = pd.read_csv(content, header=None, na_values="?")
+            X_df = df.iloc[:, :-1]
+            X_raw = (
+                X_df.apply(pd.to_numeric, errors="coerce")
+                .fillna(0)
+                .to_numpy(dtype=np.float64)
+            )
+            return self._clean_constant_cols(X_raw, "arrhythmia")
+        except Exception as e:
+            print(f"    Error parsing Arrhythmia: {e}")
+            return None
 
-    # Z-score Normalization
-    X_mean = np.mean(X_raw, axis=0)
-    X_std = np.std(X_raw, axis=0)
+    def _parse_myocardial(self, X_df):
+        try:
+            X_raw = (
+                X_df.apply(pd.to_numeric, errors="coerce")
+                .fillna(0)
+                .to_numpy(dtype=np.float64)
+            )
+            return self._clean_constant_cols(X_raw, "myocardial")
+        except Exception as e:
+            print(f"    Error parsing Myocardial: {e}")
+            return None
 
-    # Safety: Avoid division by zero
-    X_std[X_std == 0] = 1.0
+    # --- UTILS ---
+    def _clean_constant_cols(self, X_raw, name):
+        """Drops columns with variance ~0."""
+        std_devs = np.std(X_raw, axis=0)
+        keep_idx = np.where(std_devs > 1e-9)[0]
+        dropped_count = X_raw.shape[1] - len(keep_idx)
 
-    X_norm = (X_raw - X_mean) / X_std
+        if dropped_count > 0:
+            print(f"    [{name} Cleaning] Dropped {dropped_count} constant columns.")
 
-    # Correlation Matrix
-    A = (X_norm.T @ X_norm) / N
+        return X_raw[:, keep_idx]
 
-    print(f"    Computed Correlation Matrix A: {A.shape}")
-    return A, X_norm
+    def _standardize_and_correlate(self, X_raw):
+        """Z-score normalization and A = (X^T X)/N."""
+        N, p = X_raw.shape
+        print(f"    Raw Data Shape: {N} rows x {p} features")
 
+        X_mean = np.mean(X_raw, axis=0)
+        X_std = np.std(X_raw, axis=0)
+        X_std[X_std == 0] = 1.0  # Safety
 
-print(load_dataset_online("residential"))
+        X_norm = (X_raw - X_mean) / X_std
+        A = (X_norm.T @ X_norm) / N
+
+        print(f"    Computed Correlation Matrix A: {A.shape}")
+        return A, X_norm
+
+    @staticmethod
+    def get_correlation_density(A):
+        p = A.shape[0]
+        off_diag = A[~np.eye(p, dtype=bool)]
+        return np.mean(np.abs(off_diag))
