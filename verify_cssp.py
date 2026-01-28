@@ -1,6 +1,6 @@
 import numpy as np
 import time
-from logs.old_logs.fw_homotomy import FWHomotopySolver
+from grad_fw.fw_homotomy import FWHomotopySolver
 from grad_fw.benchmarks import GreedySolver
 
 

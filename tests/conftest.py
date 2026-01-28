@@ -7,13 +7,13 @@ from datetime import datetime
 
 from grad_fw.data_loader import DatasetLoader
 
-if 'PBS_O_WORKDIR' in os.environ:
-    PROJECT_ROOT = os.environ['PBS_O_WORKDIR']
+if "PBS_O_WORKDIR" in os.environ:
+    PROJECT_ROOT = os.environ["PBS_O_WORKDIR"]
 else:
     # Go up two levels from 'tests/conftest.py' to get to project root
     CONFTEST_DIR = os.path.dirname(os.path.abspath(__file__))
     PROJECT_ROOT = os.path.dirname(CONFTEST_DIR)
-    
+
 
 LOG_DIR = os.path.join(PROJECT_ROOT, "logs")
 os.makedirs(LOG_DIR, exist_ok=True)
@@ -22,13 +22,13 @@ SESSION_RESULTS = []  # Store results here for the terminal summary
 
 
 # Define ALL log paths using LOG_DIR
-LOG_FILE = os.path.join(LOG_DIR, "benchmark_log.csv") # FIXED: Added missing definition
+LOG_FILE = os.path.join(LOG_DIR, "benchmark_log.csv")  # FIXED: Added missing definition
 SWEEP_LOG_FILE = os.path.join(LOG_DIR, "param_sweep_log.csv")
-GRAD_LOG_FILE = os.path.join(LOG_DIR, "grad_test_log.csv") # FIXED: Now absolute
-CRITICAL_K_LOG_FILE = os.path.join(LOG_DIR, "critical_k_results.csv") # FIXED
-CRITICAL_K_FINAL_LOG_FILE = os.path.join(LOG_DIR, "critical_k_final.csv") # FIXED
-CRITICLAL_K_NMC_LOG_FILE = os.path.join(LOG_DIR, "critical_k_nmc.csv") # FIXED
-
+GRAD_LOG_FILE = os.path.join(LOG_DIR, "grad_test_log.csv")  # FIXED: Now absolute
+CRITICAL_K_LOG_FILE = os.path.join(LOG_DIR, "critical_k_results.csv")  # FIXED
+CRITICAL_K_FINAL_LOG_FILE = os.path.join(LOG_DIR, "critical_k_final.csv")  # FIXED
+CRITICLAL_K_NMC_LOG_FILE = os.path.join(LOG_DIR, "critical_k_nmc.csv")  # FIXED
+COMPARE_K_LOG_FILE = os.path.join(LOG_DIR, "compare_k_log.csv")
 LOADER = DatasetLoader()
 
 
@@ -172,6 +172,35 @@ def sweep_logger():
         "Status",
     ]
     logger = CSVLogger(SWEEP_LOG_FILE, headers)
+
+    def log_sweep(**kwargs):
+        kwargs.setdefault("status", "DONE")
+        kwargs.setdefault("alpha", "")  # Default if missing
+        logger.log(**kwargs)
+
+    return log_sweep
+
+
+@pytest.fixture(scope="session")
+def compare_k_logger():
+    headers = [
+        "Timestamp",
+        "Dataset",
+        "p",
+        "Experiment",
+        "k",
+        "Steps",
+        "Samples",
+        "Alpha",
+        "Greedy_Obj",
+        "FW_Obj",
+        "Ratio",
+        "Greedy_Time_s",
+        "FW_Time_s",
+        "Speedup_x",
+        "Status",
+    ]
+    logger = CSVLogger(COMPARE_K_LOG_FILE, headers)
 
     def log_sweep(**kwargs):
         kwargs.setdefault("status", "DONE")

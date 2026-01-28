@@ -6,6 +6,32 @@ import scipy
 from ucimlrepo import fetch_ucirepo
 from sklearn.datasets import fetch_openml  # Added for MNIST/Madelon
 
+# Registry of supported datasets
+# --- 1. Registry of Data Sources ---
+DATASETS_URL = {
+    "residential": "https://archive.ics.uci.edu/ml/machine-learning-databases/00437/Residential-Building-Data-Set.xlsx",
+    "secom": "https://archive.ics.uci.edu/ml/machine-learning-databases/secom/secom.data",
+    "arrhythmia": "https://archive.ics.uci.edu/ml/machine-learning-databases/arrhythmia/arrhythmia.data",
+}
+
+DATASETS_ID = {"myocardial": 579}
+
+DATASETS_OPENML = {"mnist": "mnist_784", "madelon": "madelon"}
+
+DATASETS_SYNTHETIC = {
+    "synthetic_high_corr": "generator",
+    "synthetic_toeplitz": "generator",
+}
+
+# --- 2. Master Registry (Merged Dictionary) ---
+# This allows you to do: for name in DatasetLoader.ALL_DATASETS: loader.load(name)
+ALL_DATASETS = {
+    **DATASETS_URL,
+    **DATASETS_ID,
+    **DATASETS_OPENML,
+    **DATASETS_SYNTHETIC,
+}
+
 
 class DatasetLoader:
     """
@@ -13,15 +39,6 @@ class DatasetLoader:
     Handles downloading, parsing, cleaning, and standardizing datasets.
     Supported: 'residential', 'secom', 'arrhythmia', 'myocardial', 'mnist', 'madelon', 'synthetic'.
     """
-
-    # Registry of supported datasets
-    DATASETS_URL = {
-        "residential": "https://archive.ics.uci.edu/ml/machine-learning-databases/00437/Residential-Building-Data-Set.xlsx",
-        "secom": "https://archive.ics.uci.edu/ml/machine-learning-databases/secom/secom.data",
-        "arrhythmia": "https://archive.ics.uci.edu/ml/machine-learning-databases/arrhythmia/arrhythmia.data",
-    }
-
-    DATASETS_ID = {"myocardial": 579}
 
     def __init__(self):
         pass
@@ -43,25 +60,35 @@ class DatasetLoader:
 
         try:
             # --- PATH 1: Synthetic Generator ---
-            if key == "synthetic_high_corr":
-                return self.generate_high_dim_correlated_data(**kwargs)
+            if key in DATASETS_SYNTHETIC:
+                if key == "synthetic_high_corr":
+                    return self.generate_high_dim_correlated_data(**kwargs)
+                if key == "synthetic_toeplitz":
+                    return self.generate_toeplitz_trap(**kwargs)
 
-            if key == "synthetic_toeplitz":
-                return self.generate_toeplitz_trap(**kwargs)
-
-            # --- PATH 2: Scikit-Learn OpenML (MNIST, Madelon) ---
-            if key in ["mnist", "madelon"]:
+            # --- PATH 2: Scikit-Learn OpenML ---
+            if key in DATASETS_OPENML:
                 return self._load_openml(key)
 
             # --- PATH 3: UCI ML Repo ID ---
-            if key in self.DATASETS_ID:
+            if key in DATASETS_ID:
                 print(f"    Source: UCI Repo ID {self.DATASETS_ID[key]}")
+                # Myocardial specific handling
                 X_data = fetch_ucirepo(id=self.DATASETS_ID[key]).data.features
                 X_raw = self._parse_myocardial(X_data)
                 return self._standardize_and_correlate(X_raw)
 
             # --- PATH 4: Direct URL / Legacy ---
-            url = self.DATASETS_URL.get(key, name_or_url)
+            # Check if key is in URL dict, otherwise treat input as raw URL
+            url = DATASETS_URL.get(key, name_or_url)
+
+            # If it's not a known key and not a valid URL structure (basic check), fail fast
+            if key not in DATASETS_URL and not key.startswith("http"):
+                print(f"    Error: '{key}' not found in registry and is not a URL.")
+                return None, None
+
+            # --- PATH 4: Direct URL / Legacy ---
+            url = DATASETS_URL.get(key, name_or_url)
             print(f"    Source: {url}")
 
             response = requests.get(url, verify=False)

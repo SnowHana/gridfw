@@ -2,7 +2,7 @@ import pytest
 import numpy as np
 import itertools
 from grad_verif.core import ProblemGenerator
-from logs.old_logs.fw_homotomy import FWHomotopySolver
+from grad_fw.fw_homotomy import FWHomotopySolver
 
 
 # --- HELPER: Local Brute Force Solver (Ground Truth) ---

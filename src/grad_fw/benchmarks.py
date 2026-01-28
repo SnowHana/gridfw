@@ -2,7 +2,7 @@ import numpy as np
 import itertools
 import time
 
-from logs.old_logs.fw_homotomy import FWHomotopySolver
+from grad_fw.fw_homotomy import FWHomotopySolver
 
 
 class GreedySolver:

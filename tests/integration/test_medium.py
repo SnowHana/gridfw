@@ -1,7 +1,7 @@
 import pytest
 import numpy as np
 from grad_fw.benchmarks import GreedySolver
-from logs.old_logs.fw_homotomy import FWHomotopySolver
+from grad_fw.fw_homotomy import FWHomotopySolver
 
 
 def test_medium_stability():
