@@ -21,7 +21,7 @@ class FWHomotopySolver:
         # Adaptive Sampling Strategy
         # Allow at least 20 steps per features
         if n_steps is None:
-            self.n_steps = max(100, int(20 * self.k))
+            self.n_steps = max(1000, int(20 * self.k))
         else:
             self.n_steps = n_steps
 

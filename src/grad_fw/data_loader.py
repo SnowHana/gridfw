@@ -72,9 +72,9 @@ class DatasetLoader:
 
             # --- PATH 3: UCI ML Repo ID ---
             if key in DATASETS_ID:
-                print(f"    Source: UCI Repo ID {self.DATASETS_ID[key]}")
+                print(f"    Source: UCI Repo ID {DATASETS_ID[key]}")
                 # Myocardial specific handling
-                X_data = fetch_ucirepo(id=self.DATASETS_ID[key]).data.features
+                X_data = fetch_ucirepo(id=DATASETS_ID[key]).data.features
                 X_raw = self._parse_myocardial(X_data)
                 return self._standardize_and_correlate(X_raw)
 
@@ -137,7 +137,7 @@ class DatasetLoader:
 
     # --- SYNTHETIC GENERATOR ---
     def generate_high_dim_correlated_data(
-        self, N=2000, p=500, n_blocks=1, correlation_strength=0.9
+        self, N=2000, p=500, n_blocks=20, correlation_strength=0.9
     ):
         """Generates synthetic 'Trap' data for Greedy vs FW testing."""
         # Calculate block size ensuring integer division
