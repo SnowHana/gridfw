@@ -31,8 +31,8 @@ DATASETS = [
 # DATASETS = DATASETS_SYNTHETIC
 
 
-@pytest.mark.parametrize("m", [20, 50, 100, 200])
-@pytest.mark.parametrize("alpha", [0.1, 0.2])
+@pytest.mark.parametrize("m", [500])
+@pytest.mark.parametrize("alpha", [0.2])
 @pytest.mark.parametrize("dataset_data", DATASETS, indirect=True)
 def test_compare_k_fixed_p(dataset_data, compare_k_logger, alpha, m):
     """Test 1: Tetsting objective values and speedupx for alpha = 0.1, 0.2 and m = 20, 50

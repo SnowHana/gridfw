@@ -176,7 +176,7 @@ def run_experiment(
 
 
 def find_critical_k(
-    A_sub, name_p, logger, max_run=10, steps=800, samples=100, isTime=True
+    A_sub, name_p, logger, max_run=10, steps=None, samples=None, isTime=True
 ):
     """Binary Search to find k_c : speedupx = 1.0 or ratio = 1.0
     isTime decides"""
