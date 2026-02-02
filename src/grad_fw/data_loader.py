@@ -1,17 +1,21 @@
+import os
 import numpy as np
 import pandas as pd
 import io
-import requests
 import scipy
 from ucimlrepo import fetch_ucirepo
 from sklearn.datasets import fetch_openml  # Added for MNIST/Madelon
 
 # Registry of supported datasets
 # --- 1. Registry of Data Sources ---
+# Using local files in ../../../data relative to this file
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+DATA_DIR = os.path.join(BASE_DIR, "data")
+
 DATASETS_URL = {
-    "residential": "https://archive.ics.uci.edu/ml/machine-learning-databases/00437/Residential-Building-Data-Set.xlsx",
-    "secom": "https://archive.ics.uci.edu/ml/machine-learning-databases/secom/secom.data",
-    "arrhythmia": "https://archive.ics.uci.edu/ml/machine-learning-databases/arrhythmia/arrhythmia.data",
+    "residential": os.path.join(DATA_DIR, "residential.xlsx"),
+    "secom": os.path.join(DATA_DIR, "secom.data"),
+    "arrhythmia": os.path.join(DATA_DIR, "arrhythmia.data"),
 }
 
 DATASETS_ID = {"myocardial": 579}
@@ -78,29 +82,33 @@ class DatasetLoader:
                 X_raw = self._parse_myocardial(X_data)
                 return self._standardize_and_correlate(X_raw)
 
-            # --- PATH 4: Direct URL / Legacy ---
-            # Check if key is in URL dict, otherwise treat input as raw URL
-            url = DATASETS_URL.get(key, name_or_url)
-
-            # If it's not a known key and not a valid URL structure (basic check), fail fast
-            if key not in DATASETS_URL and not key.startswith("http"):
-                print(f"    Error: '{key}' not found in registry and is not a URL.")
+            # --- PATH 4: Local File ---
+            # Check if key is in URL dict, otherwise treat input as raw Path
+            file_path = DATASETS_URL.get(key, name_or_url)
+            
+            # If it's not a known key and not an existing file
+            if key not in DATASETS_URL and not os.path.exists(file_path):
+                print(f"    Error: '{key}' not found in registry and file not found at path.")
+                print(f"    Evaluated path: {file_path}")
                 return None, None
 
-            # --- PATH 4: Direct URL / Legacy ---
-            url = DATASETS_URL.get(key, name_or_url)
-            print(f"    Source: {url}")
+            print(f"    Source: {file_path}")
 
-            response = requests.get(url, verify=False)
-            response.raise_for_status()
-            content = io.BytesIO(response.content)
+            # Local file handling
+            if not os.path.exists(file_path):
+                print(f"    Error: File not found at {file_path}")
+                return None, None
+            
+            with open(file_path, "rb") as f:
+                content = io.BytesIO(f.read())
 
             X_raw = None
-            if "Residential-Building" in url:
+            path_lower = file_path.lower()
+            if "residential" in path_lower:
                 X_raw = self._parse_residential(content)
-            elif "secom" in url:
+            elif "secom" in path_lower:
                 X_raw = self._parse_secom(content)
-            elif "arrhythmia" in url:
+            elif "arrhythmia" in path_lower:
                 X_raw = self._parse_arrhythmia(content)
             else:
                 # Generic Fallback
