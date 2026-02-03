@@ -10,7 +10,7 @@ from grad_fw.data_loader import DatasetLoader
 
 # Configuration to match test_critical_k_time
 NUM_POINTS = 30
-NUM_REPEATS = 5
+NUM_REPEATS = 3
 
 def dummy_logger(**kwargs):
     """
@@ -51,12 +51,11 @@ def main():
         sys.exit(1)
 
     # 2. Define Param Space (replicating test_critical_k_time)
-    # p_values = np.linspace(25, p_full // 2, num=num_points, dtype=int)
     if p_full < 50:
         print(f"Warning: p_full={p_full} is small. Adjusting range.")
-        p_values = np.linspace(max(2, p_full // 4), p_full // 2, num=min(NUM_POINTS, p_full // 2), dtype=int)
+        p_values = np.linspace(max(2, int(p_full * 0.01)), p_full, num=min(NUM_POINTS, p_full // 2), dtype=int)
     else:
-        p_values = np.linspace(25, p_full // 2, num=NUM_POINTS, dtype=int)
+        p_values = np.linspace(25, p_full, num=NUM_POINTS, dtype=int)
     
     p_values = np.unique(p_values)
     print(f"Targeting p values: {p_values}")
@@ -80,7 +79,8 @@ def main():
                 name_p=name, 
                 logger=dummy_logger, 
                 max_run=10, 
-                isTime=True
+                isTime=True,
+                samples=50,
             )
 
             best_k = res.get("k", -1)
@@ -94,11 +94,13 @@ def main():
                 "Final_Critical_k": best_k,
                 "Speedup_At_k": res.get("speedupx"), # Fixed key
                 "Ratio": res.get("ratio"),
+                "Steps": res.get("steps"),
+                "Samples": res.get("samples"),
                 "Run_ID": run_id # Added for tracking
             }
             
             results_list.append(entry)
-            print(f"  > p={p}: k={best_k}, Speedup={entry['Speedup_At_k']:.4f}, Ratio={entry['Ratio']:.4f}")
+            print(f"  > p={p}: k={best_k}, Speedup={entry['Speedup_At_k']:.4f}, Ratio={entry['Ratio']:.4f}, Steps={entry['Steps']}, Samples={entry['Samples']}")
 
     # 4. Save Results
     df = pd.DataFrame(results_list)

@@ -204,15 +204,24 @@ def find_critical_k(
             k = 1
         if k > p:
             k = p
-        # Run exp
+        # Run exp (No adaptive)
         res_dict = run_experiment(
             A_sub,
             k,
-            steps=steps,
+            steps=min(20*k, 1000),
             samples=samples,
             experiment_name=experiment_name,
             dataset_name=run_name,
         )
+        # Run EXP with original setting
+        # res_dict = run_experiment(
+        #     A_sub,
+        #     k,
+        #     steps=steps,
+        #     samples=samples,
+        #     experiment_name=experiment_name,
+        #     dataset_name=run_name,
+        # )
         res = res_dict[target_col]
 
         # Log critical k specific data
