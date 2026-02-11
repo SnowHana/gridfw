@@ -176,7 +176,7 @@ def run_experiment(
 
 
 def find_critical_k(
-    A_sub, name_p, logger, max_run=10, steps=800, samples=100, isTime=True
+    A_sub, name_p, logger, max_run=10, steps=None, samples=None, isTime=True, target=1.0
 ):
     """Binary Search to find k_c : speedupx = 1.0 or ratio = 1.0
     isTime decides"""
@@ -204,15 +204,24 @@ def find_critical_k(
             k = 1
         if k > p:
             k = p
-        # Run exp
+        # Run exp (No adaptive)
         res_dict = run_experiment(
             A_sub,
             k,
-            steps=steps,
+            steps=min(20*k, 1000),
             samples=samples,
             experiment_name=experiment_name,
             dataset_name=run_name,
         )
+        # Run EXP with original setting
+        # res_dict = run_experiment(
+        #     A_sub,
+        #     k,
+        #     steps=steps,
+        #     samples=samples,
+        #     experiment_name=experiment_name,
+        #     dataset_name=run_name,
+        # )
         res = res_dict[target_col]
 
         # Log critical k specific data
@@ -222,17 +231,17 @@ def find_critical_k(
         logger(**log_data)
 
         # Track best k
-        if abs(res - 1.0) <= best_diff:
-            best_diff = abs(res - 1.0)
+        if abs(res - target) <= best_diff:
+            best_diff = abs(res - target)
             best_res = res_dict.copy()
             best_res["k"] = k
 
         # Exact match: 95% ~ 105%
-        if 0.95 <= res <= 1.05:
+        if target - 0.05 <= res <= target + 0.05:
             return best_res
 
         # Binary search
-        if res > 1.0:
+        if res > target:
             # Reduce k
             high = k - 1
         else:

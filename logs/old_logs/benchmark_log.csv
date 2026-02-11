@@ -1,3 +1,0 @@
-Timestamp,Dataset,Test_Name,k,Steps,Samples,Greedy_Obj,FW_Obj,Ratio,Greedy_Time_s,FW_Time_s,Speedup_x,Status,Note
-2026-01-21 19:29:36,Residential,residential_medium_stability,20,2000,500,100.0077,99.8436,0.9984,0.0638,3.5877,0.02,PASS (CV=0.0%),
-2026-01-21 19:29:39,Residential,residential_scalability_k40,40,600,50,102.6188,102.6226,1.0000,0.2184,0.1703,1.28,PASS,
