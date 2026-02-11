@@ -12,6 +12,11 @@ NUM_REPEATS = 3
 MIN_P = 450
 
 
+
+def get_adaptive_steps(k):
+    return int(min(20 * k, 1000))
+
+
 def main():
     """main Run ideal case scenario.
 
@@ -21,15 +26,21 @@ def main():
     # Usage: python experiment/critical_k_benchmark.py [DATASET_NAME] [OUTPUT_FILENAME]
     if len(sys.argv) < 3:
         print(
-            "Usage: python experiment/best_case_benchmark.py [DATASET_NAME] [OUTPUT_FILENAME]"
+            "Usage: python experiment/best_case_benchmark.py [DATASET_NAME] [OUTPUT_FILENAME] [STEPS] [SAMPLES]"
         )
         sys.exit(1)
 
     dataset_name = sys.argv[1]
     output_filename = sys.argv[2]
+    
+    # Optional arguments
+    steps_arg = int(sys.argv[3]) if len(sys.argv) > 3 else None
+    samples_arg = int(sys.argv[4]) if len(sys.argv) > 4 else None
 
-    # Ensure output directory exists
-    os.makedirs(os.path.dirname(output_filename), exist_ok=True)
+    # Ensure output directory exists if specified
+    output_dir = os.path.dirname(output_filename)
+    if output_dir:
+        os.makedirs(output_dir, exist_ok=True)
 
     loader = DatasetLoader()
 
@@ -76,11 +87,16 @@ def main():
             
             # Call find_critical_k / run_experiment
             for k in k_list:
+                # Use provided steps or adaptive steps
+                run_steps = steps_arg if steps_arg is not None else get_adaptive_steps(k)
+                
                 res = run_experiment(
                     A_sub, 
                     k, 
                     experiment_name=f"{dataset_name}_p{p}_k{k}",
-                    dataset_name=dataset_name
+                    dataset_name=dataset_name,
+                    steps=run_steps,
+                    samples=samples_arg
                 )
 
                 # Log data

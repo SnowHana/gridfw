@@ -22,15 +22,17 @@ def dummy_logger(**kwargs):
 def main():
     # Usage: python experiment/critical_k_benchmark.py [DATASET_NAME] [OUTPUT_FILENAME]
     if len(sys.argv) < 3:
-        print("Usage: python experiment/critical_k_benchmark.py [DATASET_NAME] [OUTPUT_FILENAME]")
+        print("Usage: python experiment/critical_k_benchmark.py [DATASET_NAME] [OUTPUT_FILENAME] [TARGET_SPEEDUP]")
         sys.exit(1)
 
     dataset_name = sys.argv[1]
     output_filename = sys.argv[2]
+    target = float(sys.argv[3])
 
     # Ensure output directory exists
-    os.makedirs(os.path.dirname(output_filename), exist_ok=True)
-
+    output_dir = os.path.dirname(output_filename)
+    if output_dir:
+        os.makedirs(output_dir, exist_ok=True)
     loader = DatasetLoader()
 
     # 1. Load Data
@@ -81,6 +83,7 @@ def main():
                 max_run=10, 
                 isTime=True,
                 samples=50,
+                target=target
             )
 
             best_k = res.get("k", -1)
