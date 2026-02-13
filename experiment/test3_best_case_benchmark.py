@@ -4,13 +4,12 @@ import numpy as np
 import pandas as pd
 from datetime import datetime
 from grad_fw.data_loader import DatasetLoader
-from grad_fw.benchmarks import run_experiment
+from grad_fw.benchmarks.benchmarks import run_experiment
 
 # Configuration to match test_critical_k_time
 NUM_POINTS = 5
 NUM_REPEATS = 3
 MIN_P = 450
-
 
 
 def get_adaptive_steps(k):
@@ -32,7 +31,7 @@ def main():
 
     dataset_name = sys.argv[1]
     output_filename = sys.argv[2]
-    
+
     # Optional arguments
     steps_arg = int(sys.argv[3]) if len(sys.argv) > 3 else None
     samples_arg = int(sys.argv[4]) if len(sys.argv) > 4 else None
@@ -82,21 +81,23 @@ def main():
             # Sub-matrix
             indices = np.random.choice(p_full, p, replace=False)
             A_sub = A_full[np.ix_(indices, indices)]
-            
-            k_list = np.linspace(0.1 * p , 0.3 * p , num=5, dtype=int)
-            
+
+            k_list = np.linspace(0.1 * p, 0.3 * p, num=5, dtype=int)
+
             # Call find_critical_k / run_experiment
             for k in k_list:
                 # Use provided steps or adaptive steps
-                run_steps = steps_arg if steps_arg is not None else get_adaptive_steps(k)
-                
+                run_steps = (
+                    steps_arg if steps_arg is not None else get_adaptive_steps(k)
+                )
+
                 res = run_experiment(
-                    A_sub, 
-                    k, 
+                    A_sub,
+                    k,
                     experiment_name=f"{dataset_name}_p{p}_k{k}",
                     dataset_name=dataset_name,
                     steps=run_steps,
-                    samples=samples_arg
+                    samples=samples_arg,
                 )
 
                 # Log data

@@ -1,7 +1,7 @@
 import numpy as np
 import time
 from grad_fw.fw_homotomy import FWHomotopySolver
-from grad_fw.benchmarks import GreedySolver
+from grad_fw.benchmarks.GreedySolver import GreedySolver
 
 
 def verify():

@@ -1,6 +1,6 @@
 import pytest
 import numpy as np
-from grad_fw.benchmarks import run_experiment, find_critical_k
+from grad_fw.benchmarks.benchmarks import run_experiment, find_critical_k
 from grad_fw.data_loader import DatasetLoader
 
 # DATASETS_URL = []

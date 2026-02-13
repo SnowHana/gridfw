@@ -1,6 +1,6 @@
 import pytest
 import numpy as np
-from grad_verif.verifiers import ExpectedGradientVerifier
+from grad_fw.verif.verifiers import ExpectedGradientVerifier
 
 
 # --- FIXTURE ---

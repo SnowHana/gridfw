@@ -1,6 +1,6 @@
 import pytest
 import numpy as np
-from grad_fw.benchmarks import run_experiment
+from grad_fw.benchmarks.benchmarks import run_experiment
 
 # --- CONFIGURATION ---
 # Add or remove dataset names here to control which datasets are tested in the sweeps.
