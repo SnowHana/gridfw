@@ -7,28 +7,23 @@ from ucimlrepo import fetch_ucirepo
 from sklearn.datasets import fetch_openml  # Added for MNIST/Madelon
 
 # Registry of supported datasets
-# --- 1. Registry of Data Sources ---
 # Using local files in ../../../data relative to this file
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 DATA_DIR = os.path.join(BASE_DIR, "data")
-
 DATASETS_URL = {
     "residential": os.path.join(DATA_DIR, "residential.xlsx"),
     "secom": os.path.join(DATA_DIR, "secom.data"),
     "arrhythmia": os.path.join(DATA_DIR, "arrhythmia.data"),
 }
-
 DATASETS_ID = {"myocardial": 579}
-
 DATASETS_OPENML = {"mnist": "mnist_784", "madelon": "madelon"}
-
 DATASETS_SYNTHETIC = {
     "synthetic_high_corr": "generator",
     "synthetic_toeplitz": "generator",
 }
 
 # --- 2. Master Registry (Merged Dictionary) ---
-# This allows you to do: for name in DatasetLoader.ALL_DATASETS: loader.load(name)
+# For DatasetLoader.ALL_DATASETS
 ALL_DATASETS = {
     **DATASETS_URL,
     **DATASETS_ID,
@@ -85,10 +80,12 @@ class DatasetLoader:
             # --- PATH 4: Local File ---
             # Check if key is in URL dict, otherwise treat input as raw Path
             file_path = DATASETS_URL.get(key, name_or_url)
-            
+
             # If it's not a known key and not an existing file
             if key not in DATASETS_URL and not os.path.exists(file_path):
-                print(f"    Error: '{key}' not found in registry and file not found at path.")
+                print(
+                    f"    Error: '{key}' not found in registry and file not found at path."
+                )
                 print(f"    Evaluated path: {file_path}")
                 return None, None
 
@@ -98,7 +95,7 @@ class DatasetLoader:
             if not os.path.exists(file_path):
                 print(f"    Error: File not found at {file_path}")
                 return None, None
-            
+
             with open(file_path, "rb") as f:
                 content = io.BytesIO(f.read())
 
@@ -130,7 +127,7 @@ class DatasetLoader:
         """Handles MNIST and Madelon via sklearn."""
         if key == "mnist":
             print("    Fetching MNIST from OpenML (this may take a moment)...")
-            # Load MNIST (70k samples). We subsample to 2000 for solver speed.
+            # Load MNIST (70k samples). Subsample to 2000 for solver speed.
             X, _ = fetch_openml("mnist_784", version=1, return_X_y=True, as_frame=False)
             X = X[:2000].astype(np.float64)  # Subsample first 2000
 
@@ -139,7 +136,7 @@ class DatasetLoader:
             X, _ = fetch_openml("madelon", version=1, return_X_y=True, as_frame=False)
             X = X.astype(np.float64)
 
-        # Clean constant columns (Vital for MNIST border pixels)
+        # Clean constant columns
         X = self._clean_constant_cols(X, key)
         return self._standardize_and_correlate(X)
 
@@ -147,7 +144,7 @@ class DatasetLoader:
     def generate_high_dim_correlated_data(
         self, N=2000, p=500, n_blocks=20, correlation_strength=0.9
     ):
-        """Generates synthetic 'Trap' data for Greedy vs FW testing."""
+        """Generates synthetic data for Greedy vs FW testing."""
         # Calculate block size ensuring integer division
         block_size = p // n_blocks
         actual_p = block_size * n_blocks
@@ -158,7 +155,6 @@ class DatasetLoader:
         )
 
         for i in range(n_blocks):
-            # Latent Factor (Hidden Truth)
             latent_factor = np.random.randn(N)
 
             # Generate noisy versions of latent factor
@@ -172,7 +168,7 @@ class DatasetLoader:
                 + (1 - correlation_strength) * noise
             )
 
-        # Standardize directly (skip _standardize_and_correlate to avoid double print/logic)
+        # Standardize directly
         X_norm = (X - X.mean(axis=0)) / X.std(axis=0)
         A = (X_norm.T @ X_norm) / N
 
@@ -182,8 +178,7 @@ class DatasetLoader:
     def generate_toeplitz_trap(self, N=1000, p=500, rho=0.9):
         """
         Generates a Toeplitz covariance matrix.
-        Known to be difficult for Greedy because information is 'decaying'
-        rather than clustered.
+        Decaying correlation btw columns.
         """
         print(f"    Generating Toeplitz Trap: p={p}, rho={rho}")
 

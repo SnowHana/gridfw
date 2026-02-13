@@ -1,6 +1,6 @@
 import pytest
 import numpy as np
-from grad_fw.benchmarks import GreedySolver
+from grad_fw.benchmarks.GreedySolver import GreedySolver
 from grad_fw.fw_homotomy import FWHomotopySolver
 
 

@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 
 # --- IMPORT YOUR MODULES ---
-from grad_fw.benchmarks import run_experiment
+from grad_fw.benchmarks.benchmarks import run_experiment
 from grad_fw.data_loader import DatasetLoader
 
 # CONFIGURATION
