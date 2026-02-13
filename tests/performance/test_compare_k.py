@@ -4,7 +4,7 @@ Test effect of k (Subset size) in terms of time spent, and accuracy
 
 import pytest
 import numpy as np
-from grad_fw.benchmarks.benchmarks import run_experiment, find_critical_k
+from grad_fw.benchmarks.benchmarks import run_experiment
 from grad_fw.data_loader import (
     ALL_DATASETS,
     DATASETS_SYNTHETIC,
