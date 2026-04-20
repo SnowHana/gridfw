@@ -1,4 +1,0 @@
-grad_fw
-grad_verif
-grid-fw-moka
-logs
