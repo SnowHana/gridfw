@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.8"
 license = { text = "MIT" }
 authors = [
-    { name = "Nautilus", email = "nautilus@example.com" }
+    { name = "Wujin Daniel KIM", email = "wujindaniel1011@gmail.com" }
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",

@@ -3,3 +3,24 @@
 
 __pycahce__/
 *.pyc
+
+# For release, we dont need
+logs/
+data/
+src/gridfw.egg-info/
+**/__pycache__/
+**/.DS_Store
+src/example4.csv
+src/stress_test_results.csv
+src/scrape_data.py
+src/grad_fw/data_loader.ipynb
+src/grad_fw/verif/logs/
+
+# Archive
+experiment/
+scripts/old/
+tests/performance/
+tests/test1_parameter.py
+notebooks/
+cpp/
+
