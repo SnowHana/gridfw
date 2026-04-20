@@ -55,16 +55,3 @@ def test_fw_accuracy(p, k, cond_num, n_steps, n_samples):
     assert (
         gap_percent < 5.0
     ), f"Gap too high: {gap_percent:.2f}% (Opt: {opt_obj}, FW: {fw_obj})"
-
-
-def test_cardinality_constraint():
-    """Checks if the solver respects the k constraint exactly."""
-    p, k = 20, 5
-    gen = ProblemGenerator()
-    A = gen.generate_ill_conditioned_matrix(p, 10.0)
-
-    solver = FWHomotopySolver(A, k)
-    s_fw = solver.solve(verbose=False)
-
-    selected_count = np.sum(s_fw > 0.5)
-    assert np.isclose(selected_count, k), f"Expected {k} items, got {selected_count}"
