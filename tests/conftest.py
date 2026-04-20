@@ -25,9 +25,9 @@ SESSION_RESULTS = []  # Store results here for the terminal summary
 LOG_FILE = os.path.join(LOG_DIR, "benchmark_log.csv")  # FIXED: Added missing definition
 SWEEP_LOG_FILE = os.path.join(LOG_DIR, "param_sweep_log.csv")
 GRAD_LOG_FILE = os.path.join(LOG_DIR, "grad_test_log.csv")  # FIXED: Now absolute
-CRITICAL_K_LOG_FILE = os.path.join(LOG_DIR, "critical_k_results.csv")  # FIXED
-CRITICAL_K_FINAL_LOG_FILE = os.path.join(LOG_DIR, "critical_k_final.csv")  # FIXED
-CRITICLAL_K_NMC_LOG_FILE = os.path.join(LOG_DIR, "critical_k_nmc.csv")  # FIXED
+CRITICAL_K_LOG_FILE = os.path.join(LOG_DIR, "critical_k_results.csv")
+CRITICAL_K_FINAL_LOG_FILE = os.path.join(LOG_DIR, "critical_k_final.csv")
+CRITICAL_K_NMC_LOG_FILE = os.path.join(LOG_DIR, "critical_k_nmc.csv")
 COMPARE_K_LOG_FILE = os.path.join(LOG_DIR, "compare_k_log.csv")
 LOADER = DatasetLoader()
 
@@ -221,8 +221,6 @@ def critical_k_logger():
     return log_critical
 
 
-CRITICAL_K_FINAL_LOG_FILE = "logs/critical_k_final.csv"
-
 
 @pytest.fixture(scope="session")
 def critical_k_final_logger():
@@ -234,8 +232,6 @@ def critical_k_final_logger():
 
     return log_critical_final
 
-
-CRITICLAL_K_NMC_LOG_FILE = "logs/critical_k_nmc.csv"
 
 
 @pytest.fixture(scope="session")
@@ -250,7 +246,7 @@ def critical_k_nmc_logger():
         "Speedup_At_k",
         "Ratio",
     ]
-    logger = CSVLogger(CRITICLAL_K_NMC_LOG_FILE, headers)
+    logger = CSVLogger(CRITICAL_K_NMC_LOG_FILE, headers)
 
     def log_critical_k_nmc(**kwargs):
         logger.log(**kwargs)

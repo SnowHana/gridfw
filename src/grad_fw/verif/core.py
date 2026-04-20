@@ -138,9 +138,8 @@ class BooleanRelaxation:
         Dt = np.diag(1.0 / (t_safe**2)) - np.eye(p)   # O(p)
         Pi_t = A + delta * Dt
         
-        # Batch solve: Pi_t @ X = B, where B = A @ xi_samples.T
-        # This is O(p^3 + p^2 * N) instead of O(p^3 + p^2 * N) but with better constants
-        # and avoids explicit inversion.
+        # Batch solve: Pi_t @ X = B (B = A @ xi_samples.T)
+        # Avoids explicit matrix inversion: O(p^3 + p^2 * n_mc) vs O(p^3 * n_mc)
         B = A @ np.array(xi_samples).T # O(p * n_mc)
         X = np.linalg.solve(Pi_t, B) # O(p^3)
         

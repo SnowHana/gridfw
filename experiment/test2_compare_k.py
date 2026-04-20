@@ -13,7 +13,7 @@ FIXED_M = 50
 loader = DatasetLoader()
 
 
-def get_fine_grained_k(p):
+def get_sparse_regime_k(p):
     # Scan 1% to 25% (The sparse regime)
     ratios = np.arange(0.01, 0.26, 0.01)
     k_values = sorted(list(set([int(p * r) for r in ratios])))
@@ -21,9 +21,8 @@ def get_fine_grained_k(p):
 
 
 def main():
-    # We expect: python run_sniper.py [DATASET_NAME] [OUTPUT_FILENAME]
     if len(sys.argv) < 3:
-        print("Usage: python run_sniper.py [DATASET_NAME] [OUTPUT_FILENAME]")
+        print("Usage: python [FILE_NAME] [DATASET_NAME] [OUTPUT_FILENAME]")
         sys.exit(1)
 
     dataset_name = sys.argv[1]
@@ -43,7 +42,7 @@ def main():
         sys.exit(1)
 
     # 2. Define K List
-    k_list = get_fine_grained_k(p)
+    k_list = get_sparse_regime_k(p)
     print(f"Targeting k values: {k_list}")
 
     # 3. Execution Loop

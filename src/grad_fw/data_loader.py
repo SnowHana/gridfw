@@ -1,13 +1,20 @@
+import io
 import os
+
 import numpy as np
 import pandas as pd
-import io
 import scipy
+from sklearn.datasets import fetch_openml
 from ucimlrepo import fetch_ucirepo
-from sklearn.datasets import fetch_openml  # Added for MNIST/Madelon
 
-# Registry of supported datasets
-# Using local files in ../../../data relative to this file
+# ---------------------------------------------------------------------------
+# Dataset Registry
+# ---------------------------------------------------------------------------
+# LOCAL_FILES : datasets stored under <project_root>/data/
+# DATASETS_ID  : datasets fetched by UCI ML Repo numeric ID
+# DATASETS_OPENML : datasets fetched via scikit-learn / OpenML
+# DATASETS_SYNTHETIC : procedurally generated datasets (no download needed)
+# ---------------------------------------------------------------------------
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 DATA_DIR = os.path.join(BASE_DIR, "data")
 DATASETS_URL = {
@@ -136,7 +143,9 @@ class DatasetLoader:
             X, _ = fetch_openml("madelon", version=1, return_X_y=True, as_frame=False)
             X = X.astype(np.float64)
 
-        # Clean constant columns
+        else:
+            raise ValueError(f"Unknown OpenML dataset key: '{key}'")
+
         X = self._clean_constant_cols(X, key)
         return self._standardize_and_correlate(X)
 
@@ -178,7 +187,7 @@ class DatasetLoader:
     def generate_toeplitz_trap(self, N=1000, p=500, rho=0.9):
         """
         Generates a Toeplitz covariance matrix.
-        Decaying correlation btw columns.
+        Decaying correlation between columns: Cov[i, j] = rho^|i-j|.
         """
         print(f"    Generating Toeplitz Trap: p={p}, rho={rho}")
 

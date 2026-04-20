@@ -1,10 +1,14 @@
 import numpy as np
 from grad_fw.verif.core import BooleanRelaxation
 
+# Lower, Upper bound for t to be in [0, 1]
+T_CLIP_LOW = 0.001
+T_CLIP_HIGH = 0.999
+
 
 class FWHomotopySolver:
     """
-    Frank-Wolfe Homotopy Solver for Column Subset Selection.
+    Main Frank-Wolfe Homotopy Solver for Column Subset Selection.
     Corrected for MINIMIZATION of the A-Optimality objective.
     # TODO: Alpha : Adaptive alpha or standard frank wolfe alpha might be nice.
     """
@@ -15,20 +19,11 @@ class FWHomotopySolver:
         self.raw_p = A.shape[0]
         self.k = k
         self.alpha = alpha
-        self.n_steps = n_steps
         self.objective_type = objective_type
 
-        # Adaptive Sampling Strategy
-        # Allow at least 20 steps per features
-        if n_steps is None:
-            self.n_steps = max(1000, int(20 * self.k))
-        else:
-            self.n_steps = n_steps
-
-        if n_mc_samples is None:
-            self.n_mc_samples = 50
-        else:
-            self.n_mc_samples = n_mc_samples
+        # At least 20 steps per selected feature, floor of 1 000 steps.
+        self.n_steps = n_steps if n_steps is not None else max(1000, int(20 * k))
+        self.n_mc_samples = n_mc_samples if n_mc_samples is not None else 50
 
         # Tikhonov Regularization : A = A + lambda * I > 0 (Pos. Def.)
         A_reg = A + 1e-6 * np.eye(self.raw_p)
@@ -63,20 +58,19 @@ class FWHomotopySolver:
 
     def solve(self, verbose=True):
         """
-        Solve CSSP using FW-Homotopy
+        Solve CSSP using FW-Homotopy.
 
-        :param self: Description
-        :param n_restarts: Number of SEPARATE runs of algorithm to find best run amongst
-        :param verbose: Print stdout explanation
+        Args:
+            verbose (bool): Print progress to stdout. Defaults to True.
+
+        Returns:
+            np.ndarray: Binary selection vector s of length p.
         """
-        best_val = -np.inf
-        best_s = None
-
         # --- 1. Initialization ---
         epsilon = 0.1 * (self.k / self.p)
         theoretical_delta = (3 * self.eta_p * epsilon**2) / (1 + 3 * epsilon**2)
 
-        # Safety Floor: Prevents "wandering" in flat regions
+        # Safety Floor
         min_scale = 1e-3 * self.eta_1
         # NOTE: Clipping: We don't want delta_0 to be too small
         # Choose max(theory, 1e-6 (practically 0), eta_1 / 1000)
@@ -91,8 +85,11 @@ class FWHomotopySolver:
         t = np.full(self.p, self.k / self.p)  # O(p)
         curr_delta = delta_0
 
-        # --- Sample Generation of Rademacher vectors ---
-        # Create m Rademacher vectors at the start of the run (per restart)
+        if verbose:
+            print(
+                f"[FWHomotopy] p={self.p}, k={self.k}, steps={self.n_steps}, "
+                f"n_mc={self.n_mc_samples}, alpha={self.alpha}"
+            )
 
         # --- 2. Main Optimization Loop ---
         for l in range(1, self.n_steps + 1):  # O(n)
@@ -113,7 +110,7 @@ class FWHomotopySolver:
 
             # Update t
             t = (1 - self.alpha) * t + self.alpha * s
-            t = np.clip(t, 0.001, 0.999)
+            t = np.clip(t, T_CLIP_LOW, T_CLIP_HIGH)
 
-        # Overall timecomplexity: O(n_restarts * n * p^3 + n_restarts * n * p^2 * n_mc)
+        # Overall time complexity: O(n * p^3 + n * p^2 * n_mc)
         return s

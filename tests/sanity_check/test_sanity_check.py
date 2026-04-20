@@ -1,7 +1,7 @@
 import pytest
 import numpy as np
 import itertools
-from grad_verif.core import ProblemGenerator
+from grad_fw.verif.core import ProblemGenerator
 from grad_fw.fw_homotomy import FWHomotopySolver
 
 
@@ -69,7 +69,7 @@ def test_diagonal_sanity():
     # Solve with FW
     # Note: No restarts needed for convex diagonal problem
     solver = FWHomotopySolver(A, k, n_steps=200, n_mc_samples=50)
-    s_fw = solver.solve(n_restarts=1, verbose=False)
+    s_fw = solver.solve(verbose=False)
 
     # Extract indices
     indices = np.where(s_fw > 0.5)[0]
@@ -105,11 +105,8 @@ def test_fw_vs_bruteforce(p, k, cond_num, n_steps, n_samples):
     A = gen.generate_ill_conditioned_matrix(p, cond_num)
 
     # 2. Solve with FW
-    # Use restarts for harder problems (cond_num > 1)
-    restarts = 5 if cond_num > 1.0 else 1
-
     solver = FWHomotopySolver(A, k, n_steps=n_steps, n_mc_samples=n_samples)
-    s_fw = solver.solve(n_restarts=restarts, verbose=False)
+    s_fw = solver.solve(verbose=False)
     fw_indices = np.where(s_fw > 0.5)[0]
 
     # 3. Solve with Brute Force (Ground Truth)

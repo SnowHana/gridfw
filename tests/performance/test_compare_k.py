@@ -13,8 +13,6 @@ from grad_fw.data_loader import (
     DATASETS_OPENML,
 )
 
-# DATASETS_URL = []
-# DATASETS_URL = ["residential", "arrhythmia"]
 
 DATASETS = [
     "synthetic_high_corr",
@@ -26,9 +24,6 @@ DATASETS = [
     "arrhythmia",
     "myocardial",
 ]
-# DATASETS = ["myocardial"]
-# DATASETS = {**DATASETS_URL, **DATASETS_ID, **DATASETS_OPENML}
-# DATASETS = DATASETS_SYNTHETIC
 
 
 @pytest.mark.parametrize("m", [500])

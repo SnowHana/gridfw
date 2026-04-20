@@ -1,7 +1,6 @@
-import numpy as np
-
-
 import time
+
+import numpy as np
 
 
 class GreedySolver:
@@ -19,10 +18,10 @@ class GreedySolver:
         self.A2 = A @ A
 
     def calculate_obj(self, indices):
-        """
-        Calcualtes objective value for selected indices (=s)
-        Calculates Tr( A_SS^-1 (A^2)_SS ).
-        Because Tr(XYZ) = Tr(YZX), refer to doc for further proof.
+        """Calculates objective value for selected indices.
+
+        Computes Tr( A_SS^-1 (A^2)_SS ).
+        Because Tr(XYZ) = Tr(YZX); see documentation for full proof.
         """
         if len(indices) == 0:
             return 0.0
@@ -33,17 +32,15 @@ class GreedySolver:
 
         try:
             # Objective: MAXIMIZE Tr( A_SS^-1 A2_SS )
-            # Try fast inverse first
-            # Tikhonov Regularization
+            # Tikhonov regularization for numerical stability
             inv_A_ss = np.linalg.inv(A_ss + 1e-9 * np.eye(len(idx)))
             return np.trace(inv_A_ss @ A2_ss)
         except np.linalg.LinAlgError:
             try:
-                # Pseudo Inverse for singular...
+                # Fall back to pseudo-inverse for singular submatrices
                 inv_A_ss = np.linalg.pinv(A_ss)
                 return np.trace(inv_A_ss @ A2_ss)
             except np.linalg.LinAlgError:
-                # Can't inverse, return -inf
                 return -np.inf
 
     def solve(self):

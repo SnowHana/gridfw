@@ -1,4 +1,4 @@
-from verifiers import SingleGradientVerifier, ExpectedGradientVerifier
+from grad_fw.verif.verifiers import SingleGradientVerifier, ExpectedGradientVerifier
 
 
 def main():
