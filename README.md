@@ -1,53 +1,89 @@
-# GridFW: Gradient Framework for CSSP
+# GridFW: Scalable Column Subset Selection via Boolean Relaxation and Frank-Wolfe
 
-**GridFW** is a Python library for solving the **Column Subset Selection Problem (CSSP)** using a **Frank-Wolfe Homotopy** approach. It provides efficient solvers for large-scale subset selection tasks, particularly useful in machine learning, data summarization, and **quantitative finance** (e.g. portfolio construction and stock factor selection).
+Python implementation of [_Scalable Column Subset Selection via Boolean Relaxation and Frank-Wolfe Method_](CSSP.pdf) (KIM, 2026).
 
-## Features
+## What it does
 
-*   **Frank-Wolfe Homotopy Solver**: A gradient-based method for selecting optimal column subsets with provable convergence.
-*   **Greedy Solver**: A fast forward-selection baseline for performance comparison.
-*   **Brute-Force Solver**: Exact exponential-time solver for small-scale ground-truth validation.
-*   **Modular Design**: Easily extensible for new objective functions (e.g. A-Optimality, minimum-variance portfolio).
+The **Column Subset Selection Problem (CSSP)** asks: given a data matrix $X \in \mathbb{R}^{(n×p)}$, find the $k$ columns that best reconstruct the full matrix under the projection objective. Formally:
+
+$$
+\max   \text{Tr}(X^T P_S X) \quad
+s ∈ \{0,1\}^p, |s| \leq k.
+$$
+
+This is NP-hard.
+The standard approaches are either exact but exponential (branch-and-bound) or fast but greedy (forward selection).
+This library takes a third path.
+
+## Key idea
+
+We adapt the **Boolean relaxation** framework of Moka et al. (2025) — originally designed for minimum-variance portfolio selection — and show it applies directly to CSSP.
+The key observation is that the CSSP inner subproblem has the same algebraic form as a minimum-variance portfolio problem, which gives us a continuous relaxation with provable properties.
+
+The relaxed objective $g_\delta(t)$ over $t \in [0,1]^p$ is:
+
+- **Strictly convex** when $\delta \geq \eta_1$ (largest eigenvalue of
+  $A = X^T X / n$)
+- **Agrees with the original** at every binary corner point $s \in \{0,1\}^p$
+
+**FW-Homotopy** exploits this by running a geometric schedule
+$\delta_0 \to \eta_1$.
+It starts in the convex regime (unique global minimum, easy to find), then gradually transitions to the harder non-convex regime while tracking the solution.
+At each step, the gradient is estimated via Monte Carlo Rademacher sampling and the Frank-Wolfe LMO selects the $k$ columns with the smallest gradient components.
+
+This directly mirrors index replication in quantitative finance: selecting k assets whose covariance structure best spans the full index.
+
+## Results
+
+Benchmarked on 8 datasets ($p = 103$ to $639$) against Greedy forward selection:
+
+| Regime               | Accuracy vs Greedy | Speedup           |
+| -------------------- | ------------------ | ----------------- |
+| Dense ($k/p > 0.2$)  | Within 3%          | Up to 3.5× faster |
+| Sparse ($k/p < 0.1$) | Higher variance    | Greedy preferred  |
+
+**Recommended parameters:** $\alpha \in [0.1, 0.2], m \in [50, 200]$. Larger $m$ does not significantly improve objective quality — $n$ (steps) and $\alpha$ are the dominant factors.
 
 ## Installation
 
-To install the package in editable mode (recommended for development):
+```bash
+pip install git+https://github.com/SnowHana/gridfw.git
+```
+
+Or in editable mode for development:
 
 ```bash
-git clone https://github.com/yourusername/gridfw.git
+git clone https://github.com/SnowHana/gridfw.git
 cd gridfw
 pip install -e .
 ```
 
 ## Usage
 
-### Basic Example
-
 ```python
 import numpy as np
 from grad_fw import FWHomotopySolver
 
-# Generate synthetic data (A = X^T X / N)
-p = 20
-k = 5
-X = np.random.randn(100, p)
-A = X.T @ X / 100
+# Build correlation matrix from data (e.g. asset returns)
+X = np.random.randn(252, 100)   # 252 trading days, 100 assets
+A = X.T @ X / len(X)
 
-# Initialize and solve
-solver = FWHomotopySolver(A, k, alpha=0.01, n_steps=500)
-solution = solver.solve()
-selected_indices = np.where(solution > 0.5)[0]
+# Select k=20 assets that best span the covariance structure
+solver = FWHomotopySolver(A, k=20, alpha=0.1, n_steps=500, n_mc_samples=50)
+s = solver.solve()
+selected = np.where(s > 0.5)[0]
 
-print(f"Selected Indices: {selected_indices}")
+print(f"Selected assets: {selected}")  # exactly 20 indices
 ```
 
-### Loading Real Datasets
+For comparison against the Greedy baseline:
 
 ```python
-from grad_fw import DatasetLoader
+from grad_fw.benchmarks.GreedySolver import GreedySolver
+from grad_fw.benchmarks.benchmarks import run_experiment
 
-loader = DatasetLoader()
-A, X_norm = loader.load("synthetic_high_corr", N=2000, p=500)
+result = run_experiment(A, k=20, experiment_name="my_experiment")
+print(f"FW/Greedy ratio: {result['ratio']:.3f} | Speedup: {result['speedupx']:.2f}x")
 ```
 
 ## Project Structure
@@ -55,21 +91,34 @@ A, X_norm = loader.load("synthetic_high_corr", N=2000, p=500)
 ```
 src/grad_fw/
 ├── __init__.py          # Public API: FWHomotopySolver, DatasetLoader
-├── fw_homotomy.py       # Frank-Wolfe Homotopy solver
+├── fw_homotomy.py       # FW-Homotopy solver (main algorithm)
 ├── data_loader.py       # Dataset loading & preprocessing
 ├── benchmarks/
-│   ├── GreedySolver.py  # Greedy forward-selection baseline
+│   ├── GreedySolver.py      # Greedy forward-selection baseline  O(pk^3)
 │   ├── BruteForceSolver.py  # Exact brute-force (small p only)
-│   └── benchmarks.py    # run_experiment / find_critical_k utilities
+│   └── benchmarks.py        # run_experiment / find_critical_k
 └── verif/
     ├── core.py          # BooleanRelaxation math & gradient formulas
     └── verifiers.py     # Numerical gradient checkers
 
-experiment/              # Benchmarking scripts
-scripts/                 # Utility & verification scripts
-tests/                   # Pytest suite (grad checks, performance)
-notebooks/               # Jupyter notebooks for exploration
+tests/
+├── sanity_check/        # Correctness tests (diagonal, brute-force comparison)
+└── grad_check/          # Gradient verification (analytical vs numerical)
 ```
+
+## When to use FW-Homotopy vs Greedy
+
+| Condition                      | Recommendation                           |
+| ------------------------------ | ---------------------------------------- |
+| $k/p > 0.2$ and $p$ is large   | FW-Homotopy (faster, comparable quality) |
+| $k/p < 0.1$ (sparse selection) | Greedy (more stable)                     |
+| $p$ is small ($< 50$)          | Brute-force or Greedy                    |
+
+## Reference
+
+KIM, Wujin (Daniel). _Scalable Column Subset Selection via Boolean Relaxation and Frank-Wolfe Method_. 2026.
+
+Based on the Boolean relaxation framework of Moka et al. (2025), originally developed for minimum-variance portfolio optimization.
 
 ## License
 
