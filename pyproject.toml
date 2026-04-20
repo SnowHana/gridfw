@@ -24,11 +24,13 @@ dependencies = [
     "scipy",
     "matplotlib",
     "pandas",
+    "scikit-learn",
+    "ucimlrepo",
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/yourusername/gridfw"
-"Bug Tracker" = "https://github.com/yourusername/gridfw/issues"
+"Homepage" = "https://github.com/SnowHana/gridfw"
+"Bug Tracker" = "https://github.com/SnowHana/gridfw/issues"
 
 [tool.setuptools.packages.find]
 where = ["src"]
