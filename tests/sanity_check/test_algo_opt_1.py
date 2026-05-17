@@ -40,11 +40,12 @@ def test_fw_accuracy(p, k, cond_num, n_steps, n_samples):
     # 3. Solve with Brute Force (Ground Truth)
     bf = BruteForceSolver(A, k)
     opt_indices, opt_obj = bf.solve()
-    fw_obj = bf.calculate_objective(fw_indices)
+    fw_obj = bf.calculate_obj(fw_indices)
 
     # 4. Assertions
-    # Gap calculation: (Optimal - FW) / Optimal
-    gap_percent = (opt_obj - fw_obj) / np.abs(opt_obj) * 100
+    # Gap: how much worse FW is than the global optimum (should be near 0).
+    # For minimization: opt_obj <= fw_obj, so gap >= 0.
+    gap_percent = (fw_obj - opt_obj) / np.abs(opt_obj) * 100
 
     print(f"\n[TestCase p={p}, k={k}, cond={cond_num}]")
     print(f"   Opt: {opt_obj:.4f} | FW: {fw_obj:.4f} | Gap: {gap_percent:.4f}%")
@@ -65,5 +66,5 @@ def test_cardinality_constraint():
     solver = FWHomotopySolver(A, k)
     s_fw = solver.solve(verbose=False)
 
-    selected_count = np.sum(s_fw)
+    selected_count = np.sum(s_fw > 0.5)
     assert np.isclose(selected_count, k), f"Expected {k} items, got {selected_count}"

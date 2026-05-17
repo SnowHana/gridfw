@@ -2,11 +2,11 @@ import pytest
 import numpy as np
 from grad_fw.benchmarks.benchmarks import run_experiment
 
+pytestmark = pytest.mark.slow
+
 # --- CONFIGURATION ---
 # Add or remove dataset names here to control which datasets are tested in the sweeps.
 DATASETS = ["secom"]
-
-# --- HELPERS ---
 
 # --- TESTS ---
 
@@ -15,14 +15,14 @@ DATASETS = ["secom"]
 def test_sweep_vary_k(dataset_data, sweep_logger):
     """Experiment 1: Vary k with fixed steps/samples."""
     A, name = dataset_data
-    # Optimized range: 10 to 150 with step 15 (~10 points for good plotting)
     k_values = range(10, 450, 25)
-
     steps = 800
     samples = 100
 
     for k in k_values:
-        res = run_experiment(A, k, steps, samples, "vary_k", dataset_name=name)
+        res = run_experiment(
+            A, k, experiment_name="vary_k", dataset_name=name, steps=steps, samples=samples
+        )
         sweep_logger(**res)
 
 
@@ -35,7 +35,9 @@ def test_sweep_vary_nmc(dataset_data, sweep_logger):
     nmc_values = range(10, 500, 35)
 
     for nmc in nmc_values:
-        res = run_experiment(A, k, steps, nmc, "vary_nmc", dataset_name=name)
+        res = run_experiment(
+            A, k, experiment_name="vary_nmc", dataset_name=name, steps=steps, samples=nmc
+        )
         sweep_logger(**res)
 
 
@@ -48,7 +50,9 @@ def test_sweep_vary_steps(dataset_data, sweep_logger):
     step_values = range(100, 3000, 50)
 
     for s in step_values:
-        res = run_experiment(A, k, s, samples, "vary_steps", dataset_name=name)
+        res = run_experiment(
+            A, k, experiment_name="vary_steps", dataset_name=name, steps=s, samples=samples
+        )
         sweep_logger(**res)
 
 
@@ -62,26 +66,14 @@ def test_sweep_vary_p(sweep_logger):
     np.random.seed(42)
 
     for p in p_values:
-        # Generate synthetic data for each p
         X = np.random.randn(1000, p)
         A = X.T @ X
 
         res = run_experiment(
-            A, k, steps, samples, "vary_p", dataset_name="Synthetic_VaryP"
+            A, k, experiment_name="vary_p", dataset_name="Synthetic_VaryP",
+            steps=steps, samples=samples
         )
         sweep_logger(**res)
-
-
-# @pytest.mark.parametrize("dataset_data", DATASETS, indirect=True)
-# def test_sweep_portfolio_vary_k(dataset_data, sweep_logger):
-#     """Experiment 4: Portfolio Optimization - Vary k."""
-#     A, name = dataset_data
-#     k_values = [10, 20, 30, 40, 50]
-#     steps = 800
-#     samples = 1
-
-#     for k in k_values:
-#         run_portfolio_experiment(A, k, steps, samples, "portfolio_vary_k", sweep_logger, dataset_name=name)
 
 
 @pytest.mark.parametrize("dataset_data", ["synthetic"], indirect=True)
@@ -91,7 +83,9 @@ def test_sweep_large_synthetic(dataset_data, sweep_logger):
     k = 50
     steps = 1000
     samples = 50
-    res = run_experiment(A, k, steps, samples, "large_synthetic", dataset_name=name)
+    res = run_experiment(
+        A, k, experiment_name="large_synthetic", dataset_name=name, steps=steps, samples=samples
+    )
     sweep_logger(**res)
 
 
@@ -99,15 +93,17 @@ def test_sweep_large_synthetic(dataset_data, sweep_logger):
 def test_sweep_tuning(dataset_data, sweep_logger):
     """Experiment 7: Tuning (Grid Search over Steps and Samples)."""
     A, name = dataset_data
-    k = 50  # Fixed k for tuning
+    k = 50
 
-    # Grid Search Space
     step_values = [200, 500, 800, 1200]
     sample_values = [10, 30, 50, 100]
 
     for s in step_values:
         for nmc in sample_values:
-            res = run_experiment(A, k, s, nmc, f"tuning_s{s}_n{nmc}", dataset_name=name)
+            res = run_experiment(
+                A, k, experiment_name=f"tuning_s{s}_n{nmc}", dataset_name=name,
+                steps=s, samples=nmc
+            )
             sweep_logger(**res)
 
 
@@ -122,12 +118,7 @@ def test_sweep_vary_alpha(dataset_data, sweep_logger):
 
     for alpha in alpha_values:
         res = run_experiment(
-            A,
-            k,
-            steps,
-            samples,
-            f"vary_alpha_{alpha}",
-            alpha=alpha,
-            dataset_name=name,
+            A, k, experiment_name=f"vary_alpha_{alpha}", alpha=alpha,
+            dataset_name=name, steps=steps, samples=samples
         )
         sweep_logger(**res)

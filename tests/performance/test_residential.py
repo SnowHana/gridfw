@@ -3,7 +3,12 @@ import time
 import numpy as np
 from grad_fw.fw_homotomy import FWHomotopySolver
 from grad_fw.benchmarks.GreedySolver import GreedySolver
-from grad_fw.data_loader import load_dataset_online
+from grad_fw.data_loader import DatasetLoader
+
+pytestmark = pytest.mark.slow
+
+_LOADER = DatasetLoader()
+
 
 
 def test_medium_accuracy_stability(benchmark_logger):
@@ -17,7 +22,7 @@ def test_medium_accuracy_stability(benchmark_logger):
     print("\n\n=== BENCHMARK: Residential Building (Medium Setup) ===")
 
     # Load via string name
-    A, _ = load_dataset_online("residential")
+    A, _ = _LOADER.load("residential")
     if A is None:
         pytest.skip("Could not load dataset.")
 
@@ -48,7 +53,7 @@ def test_medium_accuracy_stability(benchmark_logger):
     for i in range(n_runs):
         t0 = time.time()
         # Single restart per run to test stability of the stochastic algorithm itself
-        s_fw = solver.solve(n_restarts=1, verbose=False)
+        s_fw = solver.solve(verbose=False)
         run_time = time.time() - t0
         total_time += run_time
 
@@ -73,10 +78,10 @@ def test_medium_accuracy_stability(benchmark_logger):
     # Log Result
     status = "PASS" if (ratio > 0.75 and cv < 0.05) else "FAIL"
     benchmark_logger(
-        "residential_medium_stability",
-        k,
-        steps,
-        samples,
+        experiment_name="residential_medium_stability",
+        k=k,
+        steps=steps,
+        samples=samples,
         g_obj=g_obj,
         fw_obj=fw_mean,
         g_time=g_time,
@@ -95,7 +100,7 @@ def test_medium_accuracy_stability(benchmark_logger):
 
 def test_scalability_k40(benchmark_logger):
     print("\n\n=== BENCHMARK: Residential Building (Scalability k=40) ===")
-    A, _ = load_dataset_online("residential")
+    A, _ = _LOADER.load("residential")
     if A is None:
         pytest.skip("No Data")
 
@@ -116,7 +121,7 @@ def test_scalability_k40(benchmark_logger):
     print("\n[2] FW-Homotopy...")
     solver = FWHomotopySolver(A, k, alpha=0.01, n_steps=steps, n_mc_samples=samples)
     t0 = time.time()
-    s_fw = solver.solve(n_restarts=1, verbose=False)
+    s_fw = solver.solve(verbose=False)
     fw_time = time.time() - t0
 
     indices = np.where(s_fw > 0.5)[0]
@@ -128,10 +133,10 @@ def test_scalability_k40(benchmark_logger):
 
     status = "PASS" if ratio > 0.70 else "FAIL"
     benchmark_logger(
-        "residential_scalability_k40",
-        k,
-        steps,
-        samples,
+        experiment_name="residential_scalability_k40",
+        k=k,
+        steps=steps,
+        samples=samples,
         g_obj=g_obj,
         fw_obj=fw_obj,
         g_time=g_time,

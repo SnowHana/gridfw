@@ -221,9 +221,6 @@ def critical_k_logger():
     return log_critical
 
 
-CRITICAL_K_FINAL_LOG_FILE = "logs/critical_k_final.csv"
-
-
 @pytest.fixture(scope="session")
 def critical_k_final_logger():
     headers = ["Timestamp", "Dataset", "p", "Final_Critical_k", "Speedup_At_k", "Ratio"]
@@ -233,9 +230,6 @@ def critical_k_final_logger():
         logger.log(**kwargs)
 
     return log_critical_final
-
-
-CRITICLAL_K_NMC_LOG_FILE = "logs/critical_k_nmc.csv"
 
 
 @pytest.fixture(scope="session")

@@ -1,0 +1,10 @@
+Test,Dim,Cond(A),Samples,Max Rel,Mean Rel,Status
+Stress (Rand),50,1.0e+00,1000,2.71e-08,1.19e-08,PASS
+Stress (Rand),50,1.0e+04,1000,4.79e-08,2.18e-08,PASS
+Stress (Rand),50,1.0e+08,1000,4.99e-08,2.18e-08,PASS
+Stress (Rand),100,1.0e+00,1000,4.63e-08,2.40e-08,PASS
+Stress (Rand),100,1.0e+04,1000,7.06e-08,4.33e-08,PASS
+Stress (Rand),100,1.0e+08,1000,7.43e-08,4.29e-08,PASS
+Stress (Rand),200,1.0e+00,1000,8.96e-08,4.93e-08,PASS
+Stress (Rand),200,1.0e+04,1000,1.41e-07,9.30e-08,PASS
+Stress (Rand),200,1.0e+08,1000,1.41e-07,9.24e-08,PASS

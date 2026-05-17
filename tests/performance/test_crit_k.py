@@ -13,6 +13,8 @@ from grad_fw.data_loader import (
     DATASETS_OPENML,
 )
 
+pytestmark = pytest.mark.slow
+
 # DATASETS_URL = []
 # DATASETS_URL = ["residential", "arrhythmia"]
 

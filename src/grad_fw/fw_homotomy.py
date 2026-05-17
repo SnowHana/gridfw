@@ -65,12 +65,13 @@ class FWHomotopySolver:
         """
         Solve CSSP using FW-Homotopy
 
-        :param self: Description
-        :param n_restarts: Number of SEPARATE runs of algorithm to find best run amongst
-        :param verbose: Print stdout explanation
+        :param verbose: Print solver configuration before running
         """
-        best_val = -np.inf
-        best_s = None
+        if verbose:
+            print(
+                f"[FWHomotopy] p={self.p}, k={self.k}, steps={self.n_steps}, "
+                f"n_mc={self.n_mc_samples}, alpha={self.alpha}"
+            )
 
         # --- 1. Initialization ---
         epsilon = 0.1 * (self.k / self.p)
@@ -89,10 +90,6 @@ class FWHomotopySolver:
             r = 1.0
 
         t = np.full(self.p, self.k / self.p)  # O(p)
-        curr_delta = delta_0
-
-        # --- Sample Generation of Rademacher vectors ---
-        # Create m Rademacher vectors at the start of the run (per restart)
 
         # --- 2. Main Optimization Loop ---
         for l in range(1, self.n_steps + 1):  # O(n)
@@ -115,5 +112,5 @@ class FWHomotopySolver:
             t = (1 - self.alpha) * t + self.alpha * s
             t = np.clip(t, 0.001, 0.999)
 
-        # Overall timecomplexity: O(n_restarts * n * p^3 + n_restarts * n * p^2 * n_mc)
+        # Overall timecomplexity: O(n * p^3 + n * p^2 * n_mc)
         return s
