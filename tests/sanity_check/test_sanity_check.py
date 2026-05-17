@@ -1,11 +1,11 @@
 import pytest
 import numpy as np
 import itertools
-from grad_verif.core import ProblemGenerator
+from grad_fw.verif.core import ProblemGenerator
 from grad_fw.fw_homotomy import FWHomotopySolver
 
 
-# --- HELPER: Local Brute Force Solver (Ground Truth) ---
+# --- Local Brute Force Solver ---
 class SimpleBruteForce:
     """
     Exact solver for small problems.
@@ -18,7 +18,7 @@ class SimpleBruteForce:
         self.p = A.shape[0]
 
     def solve(self):
-        # Initialize with Infinity (since we are MINIMIZING)
+        # Initialize with Infinity
         best_obj = np.inf
         best_idx = None
 
@@ -27,7 +27,7 @@ class SimpleBruteForce:
             idx = list(indices)
             A_sub = self.A[np.ix_(idx, idx)]
             try:
-                # We want to MINIMIZE the Trace of the Pseudo-Inverse
+                # MINIMIZE the Trace of the Pseudo-Inverse
                 obj = np.trace(np.linalg.pinv(A_sub))
             except np.linalg.LinAlgError:
                 obj = np.inf
@@ -51,7 +51,7 @@ class SimpleBruteForce:
             return np.inf
 
 
-# --- TEST 1: The "Obvious Answer" (Diagonal Sanity Check) ---
+# --- TEST 1 ---
 def test_diagonal_sanity():
     """
     Verifies the gradient logic.

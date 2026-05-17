@@ -127,15 +127,6 @@ def find_critical_k(
             dataset_name=run_name,
         )
 
-        # NOTE: Run EXP with original setting
-        # res_dict = run_experiment(
-        #     A_sub,
-        #     k,
-        #     steps=steps,
-        #     samples=samples,
-        #     experiment_name=experiment_name,
-        #     dataset_name=run_name,
-        # )
         res = res_dict[target_col]
 
         # Log critical k specific data
