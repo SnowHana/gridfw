@@ -1,5 +1,5 @@
 import numpy as np
-from grad_verif.core import BooleanRelaxation
+from grad_fw.verif.core import BooleanRelaxation
 
 
 class FWHomotopySolver:

@@ -2,7 +2,7 @@ import pytest
 import numpy as np
 import math
 import itertools
-from grad_verif.core import ProblemGenerator
+from grad_fw.verif.core import ProblemGenerator
 from grad_fw.benchmarks.BruteForceSolver import BruteForceSolver
 from grad_fw.fw_homotomy import FWHomotopySolver
 
