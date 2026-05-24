@@ -43,6 +43,24 @@ class GreedySolver:
             except np.linalg.LinAlgError:
                 return -np.inf
 
+    def solve_single_step(self, current_indices):
+        # Choose 1 best column amongst UNSELECTED
+        best_idx = -1
+        best_obj = -np.inf
+
+        candidates = [i for i in range(self.p) if i not in current_indices]
+
+        for candidate in candidates:
+            temp_indices = current_indices + [candidate]
+            val = self.calculate_obj(temp_indices)
+
+            if val > best_obj:
+                best_obj = val
+                best_idx = candidate
+        # print(f"Current_indices : {current_indices}, Best_idx: {best_idx}")
+        if best_idx != -1:
+            current_indices.append(best_idx)
+
     def solve(self):
         """
         Docstring for solve
@@ -55,23 +73,9 @@ class GreedySolver:
         # Greedily add k elements
         for _ in range(self.k):
             # Choose 1 best column amongst UNSELECTED
-            best_idx = -1
-            best_obj = -np.inf
-
-            candidates = [i for i in range(self.p) if i not in current_indices]
-
-            for candidate in candidates:
-                temp_indices = current_indices + [candidate]
-                val = self.calculate_obj(temp_indices)
-
-                if val > best_obj:
-                    best_obj = val
-                    best_idx = candidate
-
-            if best_idx != -1:
-                current_indices.append(best_idx)
+            self.solve_single_step(current_indices=current_indices)
 
         total_time = time.time() - start_time
         final_obj = self.calculate_obj(current_indices)
-
+        # print(current_indices)
         return np.array(current_indices), final_obj, total_time
