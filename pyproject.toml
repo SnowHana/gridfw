@@ -32,6 +32,9 @@ dependencies = [
 "Homepage" = "https://github.com/SnowHana/gridfw"
 "Bug Tracker" = "https://github.com/SnowHana/gridfw/issues"
 
+[project.optional-dependencies]
+examples = ["kagglehub", "yfinance"]
+
 [tool.setuptools.packages.find]
 where = ["src"]
 include = ["grad_fw*"]
