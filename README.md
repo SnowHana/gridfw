@@ -33,6 +33,12 @@ At each step, the gradient is estimated via Monte Carlo Rademacher sampling and 
 
 This directly mirrors index replication in quantitative finance: selecting k assets whose covariance structure best spans the full index.
 
+### Demo
+
+![2 Variable 3d Plot](fw_landscape_2d.gif)
+
+Observe how as $\delta$ increases, surface changes toward a concavity, and objective value converges to the solution (Corner point).
+
 ## Results
 
 Benchmarked on 8 datasets ($p = 103$ to $639$) against Greedy forward selection:
@@ -115,7 +121,7 @@ tests/
 pytest tests/sanity_check/ tests/grad_check/
 ```
 
-**Numerical experiments** from the paper (slow — sweep over k, steps, n\_mc, α, and p):
+**Numerical experiments** from the paper (slow — sweep over k, steps, n_mc, α, and p):
 
 ```bash
 pytest tests/performance/ -m slow
@@ -125,14 +131,14 @@ Results are logged as CSV files to `logs/` (created automatically).
 
 ### Dataset availability
 
-| Dataset | Source | Required action |
-| ------- | ------ | --------------- |
-| Synthetic, Synthetic Toeplitz | Generated in code | None |
-| MNIST, Madelon | OpenML (auto-download) | None |
-| Myocardial | UCI Repo (auto-download) | None |
-| SECOM | [UCI ML Repository](https://archive.ics.uci.edu/dataset/179/secom) | Download `secom.data` → `data/secom.data` |
-| Residential Building | [UCI ML Repository](https://archive.ics.uci.edu/dataset/437/residential+building+data+sets) | Download `Residential-Building-Data-Sets.xlsx` → `data/residential.xlsx` |
-| Arrhythmia | [UCI ML Repository](https://archive.ics.uci.edu/dataset/5/arrhythmia) | Download `arrhythmia.data` → `data/arrhythmia.data` |
+| Dataset                       | Source                                                                                      | Required action                                                          |
+| ----------------------------- | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| Synthetic, Synthetic Toeplitz | Generated in code                                                                           | None                                                                     |
+| MNIST, Madelon                | OpenML (auto-download)                                                                      | None                                                                     |
+| Myocardial                    | UCI Repo (auto-download)                                                                    | None                                                                     |
+| SECOM                         | [UCI ML Repository](https://archive.ics.uci.edu/dataset/179/secom)                          | Download `secom.data` → `data/secom.data`                                |
+| Residential Building          | [UCI ML Repository](https://archive.ics.uci.edu/dataset/437/residential+building+data+sets) | Download `Residential-Building-Data-Sets.xlsx` → `data/residential.xlsx` |
+| Arrhythmia                    | [UCI ML Repository](https://archive.ics.uci.edu/dataset/5/arrhythmia)                       | Download `arrhythmia.data` → `data/arrhythmia.data`                      |
 
 Tests that cannot find their data file are automatically skipped.
 
