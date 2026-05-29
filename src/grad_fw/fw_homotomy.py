@@ -114,3 +114,47 @@ class FWHomotopySolver:
 
         # Overall timecomplexity: O(n * p^3 + n * p^2 * n_mc)
         return s
+
+    def solve_with_history(self, record_every=10, verbose=True):
+        """Same as solve() but also returns snapshots of (t, s, Delta) for animation.
+
+        Returns (s, history) where history is a list of dicts recorded every
+        `record_every` steps plus the final step.
+        """
+        if verbose:
+            print(
+                f"[FWHomotopy] p={self.p}, k={self.k}, steps={self.n_steps}, "
+                f"n_mc={self.n_mc_samples}, alpha={self.alpha}"
+            )
+
+        epsilon = 0.1 * (self.k / self.p)
+        theoretical_delta = (3 * self.eta_p * epsilon**2) / (1 + 3 * epsilon**2)
+        min_scale = 1e-3 * self.eta_1
+        delta_0 = max(theoretical_delta, 1e-6, min_scale)
+        r = (
+            (self.eta_1 / delta_0) ** (1 / (self.n_steps - 1))
+            if self.n_steps > 1
+            else 1.0
+        )
+
+        t = np.full(self.p, self.k / self.p)
+        history = []
+
+        for l in range(1, self.n_steps + 1):
+            curr_delta = delta_0 * (r ** (l - 1))
+            xi_samples = [
+                np.random.choice([-1, 1], size=self.p) for _ in range(self.n_mc_samples)
+            ]
+            grad = BooleanRelaxation.grad_z_analytical(
+                self.p, curr_delta, t, self.A, xi_samples
+            )
+            s = self._get_lmo_solution(grad)
+            t = (1 - self.alpha) * t + self.alpha * s
+            t = np.clip(t, 0.001, 0.999)
+
+            if l % record_every == 0 or l == self.n_steps:
+                history.append(
+                    {"step": l, "delta": curr_delta, "t": t.copy(), "s": s.copy()}
+                )
+
+        return s, history
