@@ -33,7 +33,7 @@ dependencies = [
 "Bug Tracker" = "https://github.com/SnowHana/gridfw/issues"
 
 [project.optional-dependencies]
-examples = ["kagglehub", "yfinance"]
+examples = ["yfinance", "seaborn", "scipy", "quantstats"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

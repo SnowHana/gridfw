@@ -2,68 +2,32 @@ import os
 import time
 import pandas as pd
 import yfinance as yf
-import kagglehub
 
 # PATHS
 REPO_ROOT = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", "..")
 )  # examples/market -> repo root
 DATA_DIR = os.path.join(REPO_ROOT, "data", "market")
-KAGGLE_DATASET = "andrewmvd/sp-500-stocks"
-PRICES_CACHE = os.path.join(DATA_DIR, "sp500_prices.csv")
 MAX_AGE_DAYS = 30
 
 # Dates
-START_DATE = "2023-01-01"
+PRICES_CACHE = os.path.join(DATA_DIR, "sp500_prices.csv")
+# PRICES_FILE_NAME
+START_DATE = "2018-01-01"
 END_DATE = "2026-01-01"
 
 
-def download_kaggle_dataset():
-    os.makedirs(DATA_DIR, exist_ok=True)
-    kagglehub.dataset_download(KAGGLE_DATASET, output_dir=DATA_DIR)
-
-
 def load_sp500_companies_index_df():
-    """Read CSV files, load sp500 companies name(ticker) and sp500 index by dates
+    """Load static S&P 500 company metadata from committed CSV files.
 
-    Returns:
-        _type_: _description_
+    To update: manually download from https://www.kaggle.com/datasets/andrewmvd/sp-500-stocks
+    and replace data/market/sp500_companies.csv and sp500_index.csv.
     """
     res = {}
     for value in ["companies", "index"]:
         df = pd.read_csv(os.path.join(DATA_DIR, f"sp500_{value}.csv"))
         res[value] = df
-
     return res
-
-
-# Kaggle Data
-def load_kaggle_data(force_update=False):
-    """load_kaggle_data : Load a dataset for sp500 companies name and sp500 index
-    Use Cached dataset if not too old, else download new dataset from Kaggle
-
-    Args:
-        force_update (bool, optional): _description_. Defaults to False.
-
-    Returns:
-        _type_: _description_
-    """
-    companies_path = os.path.join(DATA_DIR, "sp500_companies.csv")
-    if not force_update and os.path.exists(companies_path):
-        cached_data_age = (time.time() - os.path.getmtime(companies_path)) / 86400
-        if cached_data_age < MAX_AGE_DAYS:
-            # Use Cached Dataset
-            print(f"Using cached Kaggle data ({cached_data_age:.0f} days old).")
-        else:
-            # Cache outdated, new dataset
-            print(f"Kaggle cache is {cached_data_age:.0f} days old, re-downloading...")
-            download_kaggle_dataset()
-    else:
-        # Force update or first run (file doesn't exist yet)
-        print("Downloading Kaggle dataset...")
-        download_kaggle_dataset()
-
-    return load_sp500_companies_index_df()
 
 
 # Price Data (cached)
@@ -129,14 +93,9 @@ def load_sp500_prices_df(start=START_DATE, end=END_DATE):
         dict with keys:
             prices_df:      DataFrame (days × stocks) of adjusted close prices
     """
-    dfs = load_kaggle_data()
+    dfs = load_sp500_companies_index_df()
     tickers = dfs["companies"]["Symbol"].str.replace(".", "-", regex=False).tolist()
 
     # 2. Load prices
     prices_df = load_prices(tickers, start, end)
-    stock_names = prices_df.columns.tolist()
-    # print(f"Prices shape: {prices_df.shape}  (days x stocks)")
     return prices_df
-
-
-# load_sp500_dataset()

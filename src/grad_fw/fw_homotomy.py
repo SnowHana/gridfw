@@ -17,6 +17,7 @@ class FWHomotopySolver:
         self.alpha = alpha
         self.n_steps = n_steps
         self.objective_type = objective_type
+        self.solution_ = None
 
         # Adaptive Sampling Strategy
         # Allow at least 20 steps per features
@@ -113,6 +114,7 @@ class FWHomotopySolver:
             t = np.clip(t, 0.001, 0.999)
 
         # Overall timecomplexity: O(n * p^3 + n * p^2 * n_mc)
+        self.solution_ = s
         return s
 
     def solve_with_history(self, record_every=10, verbose=True):
@@ -158,3 +160,7 @@ class FWHomotopySolver:
                 )
 
         return s, history
+
+    @staticmethod
+    def selected_indices(solution, threshold=0.5):
+        return np.where(solution > threshold)[0]

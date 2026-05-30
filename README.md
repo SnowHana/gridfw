@@ -150,6 +150,117 @@ Tests that cannot find their data file are automatically skipped.
 | $k/p < 0.1$ (sparse selection) | Greedy (more stable)                     |
 | $p$ is small ($< 50$)          | Brute-force or Greedy                    |
 
+# Examples
+
+## S&P 500 Portfolio Selection
+
+Applies FW-Homotopy and Greedy to select $k=50$ stocks from the S&P 500 that best span the full covariance structure of daily returns (2018–2026).
+
+### Setup
+
+Install example dependencies:
+
+```bash
+pip install -e ".[examples]"
+```
+
+Company metadata CSVs are already committed to the repo (`data/market/`).
+Price data is downloaded automatically from yfinance on first run (~2 min):
+
+```bash
+python examples/market/sp500.py
+```
+
+To force a fresh download (e.g. after changing the date range):
+
+```bash
+rm data/market/sp500_prices.csv
+python examples/market/sp500.py
+```
+
+### What it does
+
+1. **Loads** adjusted close prices for all S&P 500 constituents (2018–2026)
+2. **Computes** the log-return covariance matrix $A = \text{cov}(X^T)$
+3. **Runs** both FW-Homotopy and Greedy to select $k=50$ stocks
+4. **Compares** selections via:
+   - CSSP objective value — $\text{Tr}(A_{ss}^{-1} A^2_{ss})$ (higher = better)
+   - Correlation heatmap of selected stocks
+   - Portfolio performance metrics (Sharpe ratio, volatility, max drawdown)
+
+### Running the analysis
+
+```python
+from examples.market.sp500_load_data import load_sp500_prices_df
+from examples.market.sp500 import compute_log_returns, compute_covariance
+from examples.market.sp500_plots import plot_corr_heatmap, plot_objective_comparison
+from grad_fw import FWHomotopySolver
+from grad_fw.benchmarks.GreedySolver import GreedySolver
+import numpy as np
+
+prices_df = load_sp500_prices_df()
+X = compute_log_returns(prices_df)
+A = compute_covariance(X)
+k = 50
+
+# Run solvers
+fw_s = FWHomotopySolver(A, k, n_steps=800, n_mc_samples=100).solve()
+fw_indices = np.where(fw_s > 0.5)[0]
+greedy_indices = GreedySolver(A, k).solve()[0]
+
+# Visualise
+plot_corr_heatmap(X)
+plot_objective_comparison(A, fw_indices, greedy_indices)
+```
+
+### Date range
+
+Controlled by `START_DATE` / `END_DATE` in `examples/market/sp500_load_data.py`:
+
+```python
+START_DATE = "2018-01-01"
+END_DATE   = "2026-01-01"
+```
+
+Change these and delete `data/market/sp500_prices.csv` to re-download.
+
+### Results
+
+**Experiment setup:**
+- Universe: S&P 500 constituents, $p = 484$ stocks (after cleaning)
+- Period: 2018-01-01 to 2026-01-01 (~2,000 trading days)
+- Selection size: $k = 50$
+- FW parameters: `n_steps=800`, `n_mc_samples=100`, `alpha=0.01`
+- Data: daily adjusted close prices → log returns → sample covariance matrix $A$
+
+**CSSP objective comparison:**
+
+| Solver | Tr($A_{ss}^{-1}$ $A^2_{ss}$) |
+|---|---|
+| FW-Homotopy | 0.23 |
+| Greedy | 0.23 |
+
+Both solvers achieved equal objective value. This is expected on the S&P 500 — the index is dominated by one strong market factor, so the covariance landscape is not hard enough for Greedy to fail. FW's advantage in objective quality is more pronounced at larger $p$ or weaker correlation structure (see paper benchmarks).
+
+**Selection overlap:**
+- 31 of 50 stocks selected by both solvers
+- 19 unique to FW-Homotopy, 19 unique to Greedy
+
+**Portfolio performance (equal-weight, 2018–2026):**
+
+| Portfolio | Sharpe | Volatility | Max Drawdown |
+|---|---|---|---|
+| FW-Homotopy (k=50) | ~0.98 | higher | larger |
+| Greedy (k=50) | ~0.98 | higher | larger |
+| S&P 500 (full index) | ~1.15 | lower | smaller |
+
+> **Note on S&P 500 comparison:** The gap vs the full index is expected and not a failure of the algorithm. CSSP optimises *variance representation* (Tr($X^T P_S X$)), not financial returns. The full index benefits from 500-stock diversification and market-cap weighting toward large stable companies. The fair comparison is FW vs Greedy — not FW vs passive index investing.
+
+**Key takeaways:**
+1. FW-Homotopy matches Greedy's CSSP objective quality on real financial data.
+2. Both 50-stock portfolios have similar risk/return characteristics — the selection method does not significantly affect portfolio performance when objective values are equal.
+3. The primary advantage of FW-Homotopy over Greedy is **computational speed** at large $p$, demonstrated in the paper's synthetic benchmarks (up to 5–6× faster at $p > 400$).
+
 ## Reference
 
 KIM, Wujin (Daniel). _Scalable Column Subset Selection via Boolean Relaxation and Frank-Wolfe Method_. 2026.
