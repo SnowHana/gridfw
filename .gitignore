@@ -7,6 +7,10 @@ __pycahce__/
 # For release, we dont need
 logs/
 data/
+!data/
+!data/market/
+!data/market/sp500_companies.csv
+!data/market/sp500_index.csv
 src/gridfw.egg-info/
 **/__pycache__/
 **/.DS_Store
@@ -15,6 +19,11 @@ src/stress_test_results.csv
 src/scrape_data.py
 src/grad_fw/data_loader.ipynb
 src/grad_fw/verif/logs/
+
+# Generated outputs
+*.html
+*.gif
+sp500_prices.csv
 
 # Archive / local-only
 experiment/
