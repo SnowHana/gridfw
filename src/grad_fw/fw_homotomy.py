@@ -62,6 +62,28 @@ class FWHomotopySolver:
         s[idx] = 1.0
         return s
 
+    def _calculate_obj(self, s):
+        """Calculates CSSP objective for a binary solution vector s.
+
+        Computes Tr( A_SS^-1 (A^2)_SS ) where S is the set of selected indices.
+        """
+        # Convert binary vector to integer indices — len(idx) = k, not p
+        idx = np.where(np.array(s) > 0.5)[0]
+        if len(idx) == 0:
+            return 0.0
+
+        A_ss = self.A[np.ix_(idx, idx)]
+        A2_ss = self.A2[np.ix_(idx, idx)]
+
+        try:
+            inv_A_ss = np.linalg.inv(A_ss + 1e-9 * np.eye(len(idx)))
+            return np.trace(inv_A_ss @ A2_ss)
+        except np.linalg.LinAlgError:
+            try:
+                return np.trace(np.linalg.pinv(A_ss) @ A2_ss)
+            except np.linalg.LinAlgError:
+                return -np.inf
+
     def solve(self, verbose=True):
         """
         Solve CSSP using FW-Homotopy
@@ -91,6 +113,8 @@ class FWHomotopySolver:
             r = 1.0
 
         t = np.full(self.p, self.k / self.p)  # O(p)
+        best_s = None
+        best_obj = -np.inf
 
         # --- 2. Main Optimization Loop ---
         for l in range(1, self.n_steps + 1):  # O(n)
@@ -100,22 +124,25 @@ class FWHomotopySolver:
                 np.random.choice([-1, 1], size=self.p) for _ in range(self.n_mc_samples)
             ]  # O(n_mc * p)
 
-            # CSSP: Maximize Tr(X^T P_S X)
-            # Using grad_z_analytical (gradient of z = -g) for minimization
             grad = BooleanRelaxation.grad_z_analytical(
                 self.p, curr_delta, t, self.A, xi_samples
             )
 
-            # LMO: Pick smallest gradients
             s = self._get_lmo_solution(grad)  # O(p)
 
-            # Update t
+            # FW update — always unconditional; skipping breaks the homotopy path
             t = (1 - self.alpha) * t + self.alpha * s
             t = np.clip(t, 0.001, 0.999)
 
-        # Overall timecomplexity: O(n * p^3 + n * p^2 * n_mc)
-        self.solution_ = s
-        return s
+            # Track best binary s by actual CSSP objective (evaluated on s, not t)
+            obj = self._calculate_obj(s)
+            if obj > best_obj:
+                best_s = s.copy()
+                best_obj = obj
+
+        # Overall timecomplexity: O(n * (p^3 + p^2 * n_mc + k^3))
+        self.solution_ = best_s
+        return best_s
 
     def solve_with_history(self, record_every=10, verbose=True):
         """Same as solve() but also returns snapshots of (t, s, Delta) for animation.

@@ -133,20 +133,20 @@ class BooleanRelaxation:
         Time Complexity: O(p^3 + p^2 * n_mc)
         """
         t_safe = np.clip(t, 1e-9, 1.0)
-        
+
         # Dt = T^-2 - I
-        Dt = np.diag(1.0 / (t_safe**2)) - np.eye(p)   # O(p)
+        Dt = np.diag(1.0 / (t_safe**2)) - np.eye(p)  # O(p)
         Pi_t = A + delta * Dt
-        
+
         # Batch solve: Pi_t @ X = B (B = A @ xi_samples.T)
         # Avoids explicit matrix inversion: O(p^3 + p^2 * n_mc) vs O(p^3 * n_mc)
-        B = A @ np.array(xi_samples).T # O(p * n_mc)
-        X = np.linalg.solve(Pi_t, B) # O(p^3)
-        
+        B = A @ np.array(xi_samples).T  # O(p * n_mc)
+        X = np.linalg.solve(Pi_t, B)  # O(p^3)
+
         # Gradient component j is (2 * delta / t_j^3) * mean(X_j^2)
         grad_sum = np.sum(X**2, axis=1)
         scale = 2 * delta / (t_safe**3)
-        
+
         return scale * (grad_sum / len(xi_samples))
 
     @staticmethod
@@ -188,36 +188,36 @@ class BooleanRelaxation:
         """
         return -BooleanRelaxation.grad_g_analytical(p, delta, t, A, xi_samples)
 
-    @staticmethod
-    def grad_a_opt_analytical(p, delta, t, A, xi_samples):
-        """
-        Gradient for A-Optimality (Trace of Inverse).
-        Objective: E[ xi^T (A + delta*Dt)^-1 xi ]
-        This is what we want to MINIMIZE.
-        """
-        t_safe = np.clip(t, 1e-9, 1.0)
-        
-        Dt = np.diag(1.0 / (t_safe**2)) - np.eye(p)
-        Pi_t = A + delta * Dt
-        
-        # Batch solve: Pi_t @ X = xi_samples.T
-        B = np.array(xi_samples).T
-        X = np.linalg.solve(Pi_t, B)
-        
-        grad_sum = np.sum(X**2, axis=1)
-        scale = 2 * delta / (t_safe**3)
+    # @staticmethod
+    # def grad_a_opt_analytical(p, delta, t, A, xi_samples):
+    #     """
+    #     Gradient for A-Optimality (Trace of Inverse).
+    #     Objective: E[ xi^T (A + delta*Dt)^-1 xi ]
+    #     This is what we want to MINIMIZE.
+    #     """
+    #     t_safe = np.clip(t, 1e-9, 1.0)
 
-        return scale * (grad_sum / len(xi_samples))
+    #     Dt = np.diag(1.0 / (t_safe**2)) - np.eye(p)
+    #     Pi_t = A + delta * Dt
 
-    @staticmethod
-    def grad_portfolio_analytical(p, delta, t, A):
-        """
-        Gradient for Minimum-Variance Portfolio (Maximizing 1^T A_S^-1 1).
-        Objective: 1^T (A + delta*Dt)^-1 1
-        This is a MAXIMIZATION problem.
-        Returns NEGATIVE gradient for minimization solver.
-        """
-        b = np.ones(p)
-        # Gradient of f(t) is positive (increasing t increases objective)
-        grad_f = BooleanRelaxation.grad_f_analytical(p, delta, t, b, A)
-        return -grad_f
+    #     # Batch solve: Pi_t @ X = xi_samples.T
+    #     B = np.array(xi_samples).T
+    #     X = np.linalg.solve(Pi_t, B)
+
+    #     grad_sum = np.sum(X**2, axis=1)
+    #     scale = 2 * delta / (t_safe**3)
+
+    #     return scale * (grad_sum / len(xi_samples))
+
+    # @staticmethod
+    # def grad_portfolio_analytical(p, delta, t, A):
+    #     """
+    #     Gradient for Minimum-Variance Portfolio (Maximizing 1^T A_S^-1 1).
+    #     Objective: 1^T (A + delta*Dt)^-1 1
+    #     This is a MAXIMIZATION problem.
+    #     Returns NEGATIVE gradient for minimization solver.
+    #     """
+    #     b = np.ones(p)
+    #     # Gradient of f(t) is positive (increasing t increases objective)
+    #     grad_f = BooleanRelaxation.grad_f_analytical(p, delta, t, b, A)
+    #     return -grad_f
