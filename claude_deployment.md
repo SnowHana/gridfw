@@ -1,0 +1,239 @@
+# Project Spec: Deploy gridfw as a Sparse Portfolio Replication Tool
+
+## What we're actually building
+
+A publicly accessible web app where a user picks a target portfolio universe (e.g. S&P 500)
+and a cardinality k, and the app returns the k stocks that best replicate the full
+index's covariance structure — using CSSP via FW-Homotopy.
+
+This is sparse ETF replication: find the minimum number of stocks needed to track
+an index efficiently.
+
+**The user flow:**
+
+1. Select a universe (S&P 500 to start; extensible later)
+2. Set k — number of stocks to select (slider, e.g. 10–100)
+3. Click "Find portfolio"
+4. See: which k stocks were selected, their sectors, how well they cover the index
+
+**Not:** a benchmark comparison tool. Not FW vs Greedy. Not academic metrics.
+
+---
+
+## Why this is the right product
+
+CSSP solves the sparse index replication problem exactly:
+
+```text
+max Tr(X^T P_S X)  s.t. |S| = k
+```
+
+This selects the k columns (stocks) whose covariance structure best spans the full
+index. That is the principled solution to "which 20 stocks do I need to replicate
+the S&P 500?" — directly relevant to ETF construction, proxy hedging, and
+cost-efficient passive investing.
+
+---
+
+## Tech Stack (fixed)
+
+| Layer      | Choice                  | Reason                               |
+| ---------- | ----------------------- | ------------------------------------ |
+| API        | FastAPI                 | Python, matches existing codebase    |
+| Frontend   | Plain HTML + vanilla JS | No build step                        |
+| Charts     | Chart.js via CDN        | Single script tag                    |
+| Container  | Docker                  | Required keyword for recruiters      |
+| Deployment | Railway or Render       | Free tier, simplest path to live URL |
+
+No React, Vue, TypeScript, database, Redis, or Celery.
+
+---
+
+## Critical constraint: execution time
+
+Running FW-Homotopy on S&P 500 (p ≈ 472) with production params takes ~2–3 min.
+That is too slow for a synchronous HTTP request.
+
+**Strategy: precompute a grid of results.**
+
+For each supported universe × k combination, precompute and store the result as JSON.
+Serve instantly on request. The user chooses from a discrete slider (k = 10, 20, 30,
+40, 50) rather than arbitrary k. Results are labelled "precomputed" in the UI.
+
+This keeps the architecture simple (no async jobs, no queues) while making the demo
+feel instant.
+
+Precomputed grid for launch:
+
+- Universe: S&P 500
+- k values: 10, 20, 30, 40, 50
+- Total: 5 JSON files, generated once and committed to the repo
+
+---
+
+## API Endpoints
+
+### GET /health
+
+```json
+{"status": "ok"}
+```
+
+### GET /universes
+
+Lists available universes and their metadata.
+
+```json
+[
+  {
+    "id": "sp500",
+    "label": "S&P 500",
+    "n_stocks": 472,
+    "k_options": [10, 20, 30, 40, 50],
+    "description": "S&P 500 constituents, 2018–2026 daily returns"
+  }
+]
+```
+
+### POST /replicate
+
+Request:
+
+```json
+{ "universe": "sp500", "k": 20 }
+```
+
+Response:
+
+```json
+{
+  "universe": "sp500",
+  "k": 20,
+  "selected": [
+    { "ticker": "AAPL", "sector": "Technology", "weight": 0.05 },
+    { "ticker": "XOM",  "sector": "Energy",     "weight": 0.05 }
+  ],
+  "cssp_objective": 0.234,
+  "coverage_pct": 84.2,
+  "precomputed": true
+}
+```
+
+`coverage_pct` is what the user sees: "these 20 stocks cover 84% of the index's
+variance structure". Computed as `Tr(A_SS^-1 A^2_SS) / Tr(A^-1 A^2) * 100`.
+
+---
+
+## Frontend
+
+Single `index.html` served by FastAPI. No build step.
+
+Layout (top to bottom):
+
+1. Header: "Sparse Index Replication" — one sentence explaining what it does
+2. Universe selector (dropdown, populated from `GET /universes`)
+3. k slider — discrete steps from the universe's `k_options`
+4. "Find portfolio" button
+5. Results section (hidden until run):
+   - Headline: "20 stocks covering 84% of S&P 500 variance"
+   - Bar chart: sector breakdown of selected stocks (Chart.js)
+   - Table: ticker, sector, weight for each selected stock
+   - Small note: "Results precomputed. Algorithm: FW-Homotopy (CSSP)"
+
+---
+
+## File structure
+
+```text
+app/
+├── main.py                  # FastAPI app
+├── schemas.py               # Pydantic models
+├── universe_registry.py     # universe metadata + precomputed result loader
+├── precomputed/
+│   ├── sp500_k10.json
+│   ├── sp500_k20.json
+│   ├── sp500_k30.json
+│   ├── sp500_k40.json
+│   └── sp500_k50.json
+└── static/
+    └── index.html
+
+scripts/
+└── precompute.py            # run once to generate the JSON files
+```
+
+---
+
+## Phases
+
+### Phase 0: Precompute results (do first)
+
+Run FW-Homotopy for each (sp500, k) combination. Store JSON. Commit.
+This is the data pipeline that everything else serves.
+
+Script: `scripts/precompute.py`
+
+### Phase 1: FastAPI backend
+
+- `/health`, `/universes`, `/replicate` endpoints
+- Load precomputed JSON, validate k, return structured response
+- Pydantic models, clean error messages, presentable `/docs`
+
+Acceptance criteria:
+
+- [ ] `uvicorn app.main:app` starts without errors
+- [ ] All endpoints return correct responses
+- [ ] Invalid k returns 422 with a readable message
+- [ ] `/docs` is clean
+
+### Phase 2: Frontend
+
+- `index.html` with dropdown, slider, button, results table, sector chart
+- Chart.js from CDN
+- Loading and error states
+
+Acceptance criteria:
+
+- [ ] Dropdown populates from API
+- [ ] Slider updates to universe's k_options
+- [ ] Run returns table of selected stocks and sector chart
+- [ ] Coverage % is prominent
+- [ ] Works on mobile
+
+### Phase 3: Docker
+
+- `Dockerfile` (python:3.11-slim)
+- Precomputed JSON files bundled in image
+- `docker-compose.yml` for local dev
+- `.dockerignore`
+
+Acceptance criteria:
+
+- [ ] `docker build` succeeds
+- [ ] `docker run` serves working app on localhost
+
+### Phase 4: Deploy
+
+- Railway or Render free tier
+- Public URL
+- README updated with live link at top
+
+---
+
+## Non-goals
+
+- Custom ticker input (scope creep — preloaded universes only)
+- Real-time prices (precomputed is fine)
+- Backtesting or performance charts
+- User accounts
+- Showing FW vs Greedy comparison (not the point)
+- Rewriting the algorithm
+
+---
+
+## Definition of done
+
+1. Public URL loads a working page
+2. User selects S&P 500 + k → sees k stocks with sectors in under 2 seconds
+3. README has live link and plain-language explanation
+4. `docker build && docker run` works for anyone who clones it
