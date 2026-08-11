@@ -2,18 +2,27 @@ import os
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from app import universe_registry
 from app.schemas import UniverseInfo, ReplicateRequest, ReplicateResponse
 
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
+REPORTS_DIR = os.path.join(os.path.dirname(__file__), "reports")
 
 app = FastAPI(title="Sparse Index Replication")
+
+app.mount("/reports", StaticFiles(directory=REPORTS_DIR), name="reports")
 
 
 @app.get("/")
 def index():
     return FileResponse(os.path.join(STATIC_DIR, "index.html"))
+
+
+@app.get("/performance")
+def performance():
+    return FileResponse(os.path.join(STATIC_DIR, "performance.html"))
 
 
 @app.get("/universes", response_model=list[UniverseInfo])

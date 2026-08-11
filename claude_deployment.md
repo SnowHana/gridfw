@@ -16,7 +16,12 @@ an index efficiently.
 3. Click "Find portfolio"
 4. See: which k stocks were selected, their sectors, how well they cover the index
 
-**Not:** a benchmark comparison tool. Not FW vs Greedy. Not academic metrics.
+**Not:** the core `/replicate` tool is not a benchmark comparison tool, not FW vs
+Greedy, not academic metrics. A separate, clearly-labeled `/performance` page
+(see Phase 2.5) links out to the existing walk-forward backtest research
+(`examples/market/backtest.py`) for anyone curious how CSSP-selected portfolios
+performed historically — but it's static, secondary, and never part of the
+k-selection flow above.
 
 ---
 
@@ -217,6 +222,25 @@ Acceptance criteria:
 - [ ] Coverage % is prominent
 - [ ] Works on mobile
 
+### Phase 2.5: Performance/research page (secondary, non-core)
+
+A `/performance` page, linked from the main tool but not part of its flow,
+surfacing `examples/market/backtest.py`'s walk-forward comparison (CSSP vs
+market-cap/random/full-universe baselines, momentum and MVO variants) as
+static content:
+
+- Regenerate reports by rerunning `backtest.py` (not live per-request - this
+  is a genuinely heavy walk-forward computation, ~75 rolling windows)
+- Serve the resulting PNGs + quantstats HTML tearsheets from `app/reports/`
+- `app/static/performance.html`: cumulative-return and rolling-Sharpe charts
+  embedded inline, links to open each quantstats tearsheet
+- Clearly labeled as historical research, not a live feature of the k-selector
+
+Acceptance criteria:
+
+- [ ] `/performance` loads and links/embeds the regenerated reports
+- [ ] Main page (`index.html`) links to it, but `/replicate` is unaffected
+
 ### Phase 3: Docker
 
 - `Dockerfile` (python:3.11-slim)
@@ -241,9 +265,12 @@ Acceptance criteria:
 
 - Custom ticker input (scope creep — preloaded universes only)
 - Real-time prices (precomputed is fine)
-- Backtesting or performance charts
+- Backtesting or performance charts **in the core `/replicate` tool** — a
+  static, secondary `/performance` page is in scope (Phase 2.5), the
+  interactive k-selector is not
 - User accounts
-- Showing FW vs Greedy comparison (not the point)
+- Showing FW vs Greedy comparison **in the core tool** (the `/performance`
+  page's existing research does compare strategies, that's fine there)
 - Rewriting the algorithm
 
 ---
