@@ -69,6 +69,23 @@ Precomputed grid for launch:
 - k values: 10, 20, 30, 40, 50
 - Total: 5 JSON files, generated once and committed to the repo
 
+**Status: superseded.** k is now a free-form value (bounded `k_min`-`n_stocks`
+per universe) instead of a fixed discrete set, since the frontend now lets the
+user pick any k directly. This is fine while the solver runs at lightweight
+dev settings (`n_steps=800` fixed, not scaled with k), but it reopens the
+timing question for deploy: if solver settings are made stricter later,
+either reintroduce a discrete/capped k range, or make caching key off
+`(universe, k)` pairs generated on demand (still needs a warm-cache pass for
+common values before going live, per the note below).
+
+**Status: deferred.** During initial dev, `universe_registry.get_replication()`
+computes live on every call (no on-disk cache) to keep iteration simple while
+building out the API. Before Phase 4 (deploy), add cache-or-compute logic:
+check `app/precomputed/{universe}_k{k}.json` first, compute + write only on a
+miss, and warm the cache for the full grid above before going live. Without
+this, a live request at production solver settings (~2-3 min) will time out
+against Railway/Render's HTTP proxy.
+
 ---
 
 ## API Endpoints

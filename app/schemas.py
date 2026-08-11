@@ -5,7 +5,8 @@ class UniverseInfo(BaseModel):
     id: str
     label: str
     n_stocks: int = Field(ge=0)
-    k_options: list[int]
+    k_min: int = Field(gt=0)
+    k_max: int = Field(gt=0)
     description: str
 
 
