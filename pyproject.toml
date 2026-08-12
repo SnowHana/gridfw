@@ -26,6 +26,9 @@ dependencies = [
     "pandas",
     "scikit-learn",
     "ucimlrepo",
+    "fastapi",
+    "uvicorn",
+    "pydantic",
 ]
 
 [project.urls]
